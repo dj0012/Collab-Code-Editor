@@ -1,10 +1,7 @@
 import { io } from "socket.io-client";
 
-// 🔥 Backend URL (auto switch for production)
-const URL =
-  process.env.NODE_ENV === "production"
-    ? "https://your-backend-url.com"   // 👉 deployment ke time change karna
-    : "http://localhost:5001";
+// 🔥 Backend URL (auto switch for production via Vercel env variables)
+const URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5001";
 
 // 🔥 Create socket
 const socket = io(URL, {
