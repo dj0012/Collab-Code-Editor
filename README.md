@@ -1,4 +1,4 @@
-# 🌐 Collaborative Code Editor
+# 🌐 Collab Code Editor
 
 A real-time, highly interactive collaborative coding environment designed for teams, interviews, and teaching. Built with a modern tech stack, it features live code synchronization, integrated AI assistance, a collaborative whiteboard, and powerful admin moderation tools.
 
