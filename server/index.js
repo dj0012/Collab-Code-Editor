@@ -5,6 +5,16 @@ const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const { askAI } = require("./ai");
+const mongoose = require("mongoose");
+const Room = require("./models/Room");
+
+if (process.env.MONGODB_URI) {
+  mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log("Connected to MongoDB"))
+  .catch(err => console.error("MongoDB connection error:", err));
+} else {
+  console.log("No MONGODB_URI provided. Running in memory-only mode.");
+}
 
 let rooms = {};
 
@@ -87,23 +97,45 @@ io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
   // 🔥 JOIN ROOM
-  socket.on("join_room", ({ roomId, username, avatar }) => {
+  socket.on("join_room", async ({ roomId, username, avatar }) => {
     socket.join(roomId);
 
     socket.username = username;
     socket.roomId = roomId;
 
     if (!rooms[roomId]) {
-      rooms[roomId] = {
-        adminId: socket.id,
-        users: [],
-        files: [],
-        whiteboard: [],
-        messages: [],
-        isLocked: false,
-        isReadOnly: false,
-        isChatMuted: false,
-      };
+      let dbRoom = null;
+      if (process.env.MONGODB_URI) {
+        try {
+          dbRoom = await Room.findOne({ roomId });
+        } catch (err) {
+          console.error("Error fetching room from DB:", err);
+        }
+      }
+
+      if (dbRoom) {
+        rooms[roomId] = {
+          adminId: socket.id, // First person to revive the room becomes admin
+          users: [],
+          files: dbRoom.files || [],
+          whiteboard: [],
+          messages: dbRoom.messages || [],
+          isLocked: dbRoom.isLocked || false,
+          isReadOnly: dbRoom.isReadOnly || false,
+          isChatMuted: dbRoom.isChatMuted || false,
+        };
+      } else {
+        rooms[roomId] = {
+          adminId: socket.id,
+          users: [],
+          files: [],
+          whiteboard: [],
+          messages: [],
+          isLocked: false,
+          isReadOnly: false,
+          isChatMuted: false,
+        };
+      }
     }
 
     const room = rooms[roomId];
@@ -494,6 +526,40 @@ int main() {
   });
 });
 
-server.listen(5001, () => {
-  console.log("Server running on port 5001");
+// 🔥 BACKGROUND DB SYNC
+setInterval(async () => {
+  if (!process.env.MONGODB_URI) return;
+  
+  const activeRoomIds = Object.keys(rooms);
+  if (activeRoomIds.length === 0) return;
+
+  try {
+    const bulkOps = activeRoomIds.map(roomId => {
+      const room = rooms[roomId];
+      return {
+        updateOne: {
+          filter: { roomId },
+          update: {
+            $set: {
+              adminId: room.adminId,
+              isLocked: room.isLocked,
+              isReadOnly: room.isReadOnly,
+              isChatMuted: room.isChatMuted,
+              files: room.files,
+              messages: room.messages
+            }
+          },
+          upsert: true
+        }
+      };
+    });
+
+    await Room.bulkWrite(bulkOps);
+  } catch (err) {
+    console.error("Error during background sync:", err);
+  }
+}, 5000); // Sync every 5 seconds
+
+server.listen(process.env.PORT || 5001, () => {
+  console.log(\`Server running on port \${process.env.PORT || 5001}\`);
 });
