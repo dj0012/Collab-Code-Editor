@@ -46,10 +46,10 @@ function Room() {
   
   // Create a persistent user ID for admin tracking
   const [myUserId] = useState(() => {
-    let id = localStorage.getItem("collab_userId");
+    let id = sessionStorage.getItem("collab_userId");
     if (!id) {
       id = "user_" + Math.random().toString(36).substring(2, 15);
-      localStorage.setItem("collab_userId", id);
+      sessionStorage.setItem("collab_userId", id);
     }
     return id;
   });
