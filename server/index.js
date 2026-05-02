@@ -48,7 +48,7 @@ const getRoomState = (roomId) => {
 
   if (!room) return null;
 
-  const adminUser = room.users.find((user) => user.socketId === room.adminId);
+  const adminUser = room.users.find((user) => user.userId === room.adminId);
 
   return {
     users: room.users,
@@ -81,9 +81,7 @@ const removeUserFromRoom = (roomId, socketId) => {
   room.users = room.users.filter((user) => user.socketId !== socketId);
   io.to(roomId).emit("cursor_remove", { socketId });
 
-  if (room.adminId === socketId) {
-    room.adminId = room.users[0]?.socketId || null;
-  }
+  // Admin transfer disabled: creator is permanent admin
 
   if (room.users.length === 0) {
     // Room is empty, but we keep it in memory so data isn't lost on quick refresh
@@ -97,11 +95,12 @@ io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
   // 🔥 JOIN ROOM
-  socket.on("join_room", async ({ roomId, username, avatar }) => {
+  socket.on("join_room", async ({ roomId, username, avatar, userId }) => {
     socket.join(roomId);
 
     socket.username = username;
     socket.roomId = roomId;
+    socket.userId = userId;
 
     if (!rooms[roomId]) {
       let dbRoom = null;
@@ -115,7 +114,7 @@ io.on("connection", (socket) => {
 
       if (dbRoom) {
         rooms[roomId] = {
-          adminId: socket.id, // First person to revive the room becomes admin
+          adminId: dbRoom.adminId || userId,
           users: [],
           files: dbRoom.files || [],
           whiteboard: [],
@@ -147,7 +146,7 @@ io.on("connection", (socket) => {
     }
 
     if (!alreadyJoined) {
-      room.users.push({ socketId: socket.id, username, avatar: avatar || null, canEdit: false });
+      room.users.push({ socketId: socket.id, userId, username, avatar: avatar || null, canEdit: false });
     } else {
       // Update avatar if already joined
       const user = room.users.find((u) => u.socketId === socket.id);
@@ -169,7 +168,7 @@ io.on("connection", (socket) => {
     const room = rooms[roomId];
     if (room) {
       const user = room.users.find(u => u.socketId === socket.id);
-      if (room.isReadOnly && room.adminId !== socket.id && (!user || !user.canEdit)) return; // ENFORCE READ-ONLY
+      if (room.isReadOnly && room.adminId !== socket.userId && (!user || !user.canEdit)) return; // ENFORCE READ-ONLY
       const file = room.files.find(f => f.id === fileId);
       if (file) {
         file.content = content;
@@ -239,7 +238,7 @@ int main() {
 
   socket.on("delete_file", ({ roomId, fileId }) => {
     const room = rooms[roomId];
-    if (room && room.adminId === socket.id) {
+    if (room && room.adminId === socket.userId) {
       room.files = room.files.filter(f => f.id !== fileId);
       io.to(roomId).emit("file_deleted", fileId);
     }
@@ -276,7 +275,7 @@ int main() {
 
   socket.on("clear_file_executions", ({ roomId, fileId }) => {
     const room = rooms[roomId];
-    if (room && room.adminId === socket.id) {
+    if (room && room.adminId === socket.userId) {
       const file = room.files.find(f => f.id === fileId);
       if (file) {
         file.executions = [];
@@ -298,7 +297,7 @@ int main() {
 
   socket.on("set_language", ({ roomId, fileId, language }) => {
     const room = rooms[roomId];
-    if (!room || room.adminId !== socket.id) return;
+    if (!room || room.adminId !== socket.userId) return;
     const file = room.files.find(f => f.id === fileId);
     if (file) {
       file.language = language;
@@ -309,7 +308,7 @@ int main() {
   socket.on("reset_code", ({ roomId, fileId }) => {
     const room = rooms[roomId];
 
-    if (!room || room.adminId !== socket.id) return;
+    if (!room || room.adminId !== socket.userId) return;
 
     const file = room.files.find(f => f.id === fileId);
     if (file) {
@@ -320,7 +319,7 @@ int main() {
 
   socket.on("assign_admin", ({ roomId, newAdminId }) => {
     const room = rooms[roomId];
-    if (!room || room.adminId !== socket.id) return; // Only current admin can reassign
+    if (!room || room.adminId !== socket.userId) return; // Only current admin can reassign
 
     // Verify the new admin is actually in the room
     const userExists = room.users.some(user => user.socketId === newAdminId);
@@ -333,7 +332,7 @@ int main() {
   socket.on("kick_user", ({ roomId, targetSocketId }) => {
     const room = rooms[roomId];
 
-    if (!room || room.adminId !== socket.id || targetSocketId === socket.id) return;
+    if (!room || room.adminId !== socket.userId || targetSocketId === socket.id) return;
 
     const targetSocket = io.sockets.sockets.get(targetSocketId);
 
@@ -356,7 +355,7 @@ int main() {
   // 🔥 ADMIN MODERATION CONTROLS
   socket.on("toggle_room_lock", ({ roomId, isLocked }) => {
     const room = rooms[roomId];
-    if (room && room.adminId === socket.id) {
+    if (room && room.adminId === socket.userId) {
       room.isLocked = isLocked;
       emitRoomState(roomId);
     }
@@ -364,21 +363,21 @@ int main() {
 
   socket.on("force_sync_tab", ({ roomId, fileId }) => {
     const room = rooms[roomId];
-    if (room && room.adminId === socket.id) {
+    if (room && room.adminId === socket.userId) {
       socket.to(roomId).emit("force_tab_switch", fileId);
     }
   });
 
   socket.on("global_announcement", ({ roomId, message }) => {
     const room = rooms[roomId];
-    if (room && room.adminId === socket.id) {
+    if (room && room.adminId === socket.userId) {
       io.to(roomId).emit("receive_announcement", { message, sender: room.users.find(u => u.socketId === socket.id)?.username || 'Admin' });
     }
   });
 
   socket.on("toggle_read_only", ({ roomId, isReadOnly }) => {
     const room = rooms[roomId];
-    if (room && room.adminId === socket.id) {
+    if (room && room.adminId === socket.userId) {
       room.isReadOnly = isReadOnly;
       emitRoomState(roomId);
     }
@@ -386,7 +385,7 @@ int main() {
 
   socket.on("toggle_chat_mute", ({ roomId, isChatMuted }) => {
     const room = rooms[roomId];
-    if (room && room.adminId === socket.id) {
+    if (room && room.adminId === socket.userId) {
       room.isChatMuted = isChatMuted;
       emitRoomState(roomId);
     }
@@ -394,7 +393,7 @@ int main() {
 
   socket.on("kick_all_users", ({ roomId }) => {
     const room = rooms[roomId];
-    if (room && room.adminId === socket.id) {
+    if (room && room.adminId === socket.userId) {
       // Find all users except admin
       const usersToKick = room.users.filter(u => u.socketId !== socket.id);
       
@@ -419,7 +418,7 @@ int main() {
 
   socket.on("toggle_user_access", ({ roomId, targetSocketId }) => {
     const room = rooms[roomId];
-    if (room && room.adminId === socket.id) {
+    if (room && room.adminId === socket.userId) {
       const targetUser = room.users.find(u => u.socketId === targetSocketId);
       if (targetUser) {
         targetUser.canEdit = !targetUser.canEdit;
@@ -434,7 +433,7 @@ int main() {
 
     if (!room) return;
     const user = room.users.find(u => u.socketId === socket.id);
-    if (room.isChatMuted && room.adminId !== socket.id && (!user || !user.canEdit)) return; // ENFORCE CHAT MUTE
+    if (room.isChatMuted && room.adminId !== socket.userId && (!user || !user.canEdit)) return; // ENFORCE CHAT MUTE
     if (typeof message !== "string" || !message.trim() || message.length > 500) return; // Validation
 
     const chatMessage = {
