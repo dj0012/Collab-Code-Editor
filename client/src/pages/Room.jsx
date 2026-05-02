@@ -5,10 +5,10 @@ import socket from "../services/socket";
 import CodeEditor from "../components/Editor";
 import Whiteboard from "../components/Whiteboard";
 import Output from "../components/Output";
-import { runCode, saveVersion, getVersions } from "../services/api";
+import { runCode } from "../services/api";
 import Chat from "../components/Chat";
 import UserList from "../components/UserList";
-import { FaPlay, FaRobot, FaTerminal, FaCrown, FaBullhorn, FaHistory, FaSave, FaClock, FaUsers } from "react-icons/fa";
+import { FaPlay, FaRobot, FaTerminal, FaCrown, FaBullhorn } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import AIChat from "../components/AIChat";
 import AdminControlsModal from "../components/AdminControlsModal";
@@ -20,6 +20,7 @@ import {
   FaPaperPlane,
   FaRotateLeft,
   FaSun,
+  FaUsers,
   FaWhatsapp,
   FaEnvelope,
   FaCopy,
@@ -40,8 +41,10 @@ function Room() {
   const location = useLocation();
   const navigate = useNavigate();
   
+  // Try to get username from location state, fallback to sessionStorage
   const username = location.state?.username || sessionStorage.getItem("collab_username");
   
+  // Create a persistent user ID for admin tracking
   const [myUserId] = useState(() => {
     let id = sessionStorage.getItem("collab_userId");
     if (!id) {
@@ -78,9 +81,6 @@ function Room() {
   const [newFileName, setNewFileName] = useState("");
   const [createFileError, setCreateFileError] = useState("");
   const [activeRightTab, setActiveRightTab] = useState("team");
-  const [activeTab, setActiveTab] = useState("files"); 
-  const [versions, setVersions] = useState([]);
-  const [isSavingVersion, setIsSavingVersion] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(false);
@@ -104,26 +104,7 @@ function Room() {
     }
 
     const syncSocketId = () => setCurrentSocketId(socket.id || "");
-    const handleRoomState = (roomState) => {
-      setUsers(roomState.users || []);
-      setAdminId(roomState.adminId || "");
-      setAdminUsername(roomState.adminUsername || "");
-      setIsLocked(roomState.isLocked || false);
-      setIsReadOnly(roomState.isReadOnly || false);
-      setIsChatMuted(roomState.isChatMuted || false);
-
-      if (roomState.files) {
-        setFiles(roomState.files);
-        if (roomState.files.length > 0) {
-          setActiveFileId(prev => roomState.files.find(f => f.id === prev) ? prev : roomState.files[0].id);
-        }
-      }
-    };
-    
-    const handleVersionSaved = (version) => {
-      setVersions(prev => [version, ...prev]);
-    };
-
+    const handleCodeUpdate = (newCode) => setCode(newCode);
     const handleFileExecution = ({ fileId, execution }) => {
       setFiles(prev => prev.map(f => {
         if (f.id === fileId) {
@@ -135,10 +116,29 @@ function Room() {
     const handleFileExecutionsCleared = ({ fileId }) => {
       setFiles(prev => prev.map(f => f.id === fileId ? { ...f, executions: [] } : f));
     };
+    const handleRoomState = (roomState) => {
+      setUsers(roomState.users || []);
+      setAdminId(roomState.adminId || "");
+      setAdminUsername(roomState.adminUsername || "");
+      setIsLocked(roomState.isLocked || false);
+      setIsReadOnly(roomState.isReadOnly || false);
+      setIsChatMuted(roomState.isChatMuted || false);
+
+      if (roomState.files) {
+        setFiles(roomState.files);
+        if (roomState.files.length > 0) {
+          // Keep current active file if it exists, else set to first
+          setActiveFileId(prev => roomState.files.find(f => f.id === prev) ? prev : roomState.files[0].id);
+        }
+      }
+
+
+    };
+    
     const handleFileCreated = (file) => setFiles(prev => [...prev, file]);
     const handleFileDeleted = (fileId) => {
       setFiles(prev => prev.filter(f => f.id !== fileId));
-      setActiveFileId(prev => prev === fileId ? "" : prev); 
+      setActiveFileId(prev => prev === fileId ? "" : prev); // Will default to files[0] next render if empty
     };
     const handleFileRenamed = ({ fileId, newName }) => setFiles(prev => prev.map(f => f.id === fileId ? { ...f, name: newName } : f));
     const handleFileUpdate = ({ fileId, content }) => setFiles(prev => prev.map(f => f.id === fileId ? { ...f, content } : f));
@@ -173,7 +173,6 @@ function Room() {
     socket.on("join_rejected", handleJoinRejected);
     socket.on("force_tab_switch", handleForceTabSwitch);
     socket.on("receive_announcement", handleAnnouncement);
-    socket.on("version_saved", handleVersionSaved);
 
     const savedAvatar = localStorage.getItem(`avatar_${username}`);
     const initialAvatar = location.state?.logo || savedAvatar;
@@ -182,15 +181,7 @@ function Room() {
       localStorage.setItem(`avatar_${username}`, location.state.logo);
     }
 
-    const initialFiles = location.state?.initialFiles;
-
-    socket.emit("join_room", { 
-      roomId, 
-      username, 
-      avatar: initialAvatar, 
-      userId: myUserId,
-      initialFiles
-    });
+    socket.emit("join_room", { roomId, username, avatar: initialAvatar, userId: myUserId });
 
     return () => {
       socket.off("connect", syncSocketId);
@@ -206,7 +197,6 @@ function Room() {
       socket.off("join_rejected", handleJoinRejected);
       socket.off("force_tab_switch", handleForceTabSwitch);
       socket.off("receive_announcement", handleAnnouncement);
-      socket.off("version_saved", handleVersionSaved);
     };
   }, [navigate, roomId, username, myUserId]);
 
@@ -215,43 +205,15 @@ function Room() {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
-  useEffect(() => {
-    if (activeTab === "history") {
-      loadVersions();
-    }
-  }, [activeTab]);
-
-  const loadVersions = async () => {
-    try {
-      const data = await getVersions(roomId);
-      setVersions(data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleSaveVersion = async () => {
-    const name = prompt("Enter a name for this version snapshot:");
-    if (!name) return;
-    setIsSavingVersion(true);
-    try {
-      await saveVersion(roomId, name, username, files);
-    } catch (err) {
-      alert("Failed to save version");
-    } finally {
-      setIsSavingVersion(false);
-    }
-  };
-
-  const handleRestoreVersion = (version) => {
-    if (confirm(`Are you sure you want to restore "${version.name}"? This will overwrite the current code.`)) {
-      setFiles(version.files);
-      if (version.files.length > 0) setActiveFileId(version.files[0].id);
-      socket.emit("file_change", { roomId, fileId: version.files[0]?.id, content: version.files[0]?.content });
-    }
-  };
-
   const isAdmin = myUserId === adminId;
+
+  const fileExtensionMap = {
+    javascript: "js",
+    python: "py",
+    java: "java",
+    cpp: "cpp",
+    c: "c",
+  };
 
   const updateLanguage = (languageValue) => {
     if (!isAdmin || !activeFile.id) return;
@@ -361,6 +323,7 @@ function Room() {
       reader.onloadend = () => {
         const base64String = reader.result;
         
+        // Optimistically update local UI immediately
         setUsers(prev => prev.map(u => u.socketId === currentSocketId ? { ...u, avatar: base64String } : u));
         
         socket.emit("update_avatar", { roomId, avatar: base64String });
@@ -417,23 +380,50 @@ function Room() {
     }
   };
 
+  const copyRoomDetails = async () => {
+    const inviteText = [
+      "Collaborative Code Room",
+      `Room Code: ${roomId}`,
+      `Admin: ${adminUsername || username}`,
+      `Language: ${language.label}`,
+      `Members: ${users.length}`,
+    ].join("\n");
+
+    try {
+      await navigator.clipboard.writeText(inviteText);
+    } catch {
+      alert(inviteText);
+    }
+  };
+
   const handleRun = async () => {
+    console.log("Run Code button clicked!");
+    
+    if (!isAdmin) {
+      console.warn("User is not admin, but proceeding anyway for debugging.");
+    }
+
     if (!code) {
+      console.warn("No code provided.");
       const exec = { timestamp: Date.now(), language: "Unknown", output: "No code to run.", isError: true };
       socket.emit("add_file_execution", { roomId, fileId: activeFileId, execution: exec });
       return;
     }
 
     if (!language || language.judge0Id === -1) {
+      console.warn("Invalid language.");
       const exec = { timestamp: Date.now(), language: "Unknown", output: "Please select a valid language.", isError: true };
       socket.emit("add_file_execution", { roomId, fileId: activeFileId, execution: exec });
       return;
     }
 
+    console.log("Setting isRunning to true");
     setIsRunning(true);
 
     try {
+      console.log("Calling API runCode...");
       const result = await runCode(code, language.judge0Id);
+      console.log("runCode result:", result);
       const outputData =
         result.stdout ||
         result.stderr ||
@@ -443,8 +433,10 @@ function Room() {
       const isErrorResult = !!(result.stderr || result.compile_output);
       
       const exec = { timestamp: Date.now(), language: language.label, output: outputData, isError: isErrorResult };
+      console.log("Emitting add_file_execution:", exec);
       socket.emit("add_file_execution", { roomId, fileId: activeFileId, execution: exec });
     } catch (err) {
+      console.error("Error in runCode:", err);
       const exec = { timestamp: Date.now(), language: language.label, output: "Error running code: " + err.message, isError: true };
       socket.emit("add_file_execution", { roomId, fileId: activeFileId, execution: exec });
     } finally {
@@ -506,6 +498,10 @@ function Room() {
         onToggleChatMute={() => socket.emit("toggle_chat_mute", { roomId, isChatMuted: !isChatMuted })}
         onKickAll={() => socket.emit("kick_all_users", { roomId })}
         onDownloadChat={() => {
+          // Find chat component and trigger download, or emit an event to request chat history, 
+          // or just pull it if we have it in state. Actually we need to request it or it's already in the Chat component.
+          // Since Chat component holds the messages, we'll pass a ref or let Chat component handle its own download button.
+          // Alternatively, we can dispatch a custom event. Let's dispatch a custom event on the window.
           window.dispatchEvent(new CustomEvent('download_chat'));
         }}
         onForceSync={() => socket.emit("force_sync_tab", { roomId, fileId: activeFileId })}
@@ -739,71 +735,17 @@ function Room() {
 
       <aside className="modern-sidebar panel">
         <div className="panel-header" style={{ justifyContent: 'center', padding: '16px 12px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
-          <span style={{ color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.85rem', fontWeight: 700 }}>Workspace</span>
+          <span style={{ color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.85rem', fontWeight: 700 }}>Room Members</span>
         </div>
-        
-        {activeTab === "files" && (
-            <UserList
-              users={usersWithFallback}
-              adminUsername={adminUsername}
-              currentUsername={username}
-              isAdmin={isAdmin}
-              onKickUser={kickUser}
-              onAssignAdmin={assignAdmin}
-              onToggleAccess={(targetSocketId) => socket.emit("toggle_user_access", { roomId, targetSocketId })}
-            />
-          {activeTab === "history" && (
-            <div className="tab-content" style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)' }}>
-              <div style={{ padding: '20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--panel-strong)' }}>
-                <h3 style={{ margin: 0, fontSize: '0.95rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--heading)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <FaHistory color="var(--accent)" /> Version History
-                </h3>
-                {isAdmin && (
-                  <button onClick={handleSaveVersion} disabled={isSavingVersion} style={{ background: 'var(--accent)', color: '#000', border: 'none', padding: '8px 16px', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s', opacity: isSavingVersion ? 0.7 : 1 }}>
-                    <FaSave /> {isSavingVersion ? "Saving..." : "Save Snapshot"}
-                  </button>
-                )}
-              </div>
-              <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {versions.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ background: 'var(--panel)', padding: '16px', borderRadius: '50%' }}><FaClock size={24} opacity={0.5} /></div>
-                    <p style={{ margin: 0, lineHeight: 1.5 }}>No saved versions yet.<br/>Admins can save snapshots of the code to restore later.</p>
-                  </div>
-                ) : (
-                  versions.map(version => (
-                    <div key={version._id} style={{ 
-                      background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '16px',
-                      transition: 'all 0.2s', position: 'relative', overflow: 'hidden'
-                    }}
-                    onMouseOver={(e) => { e.currentTarget.style.borderColor = 'var(--accent-soft)'; e.currentTarget.style.background = 'var(--panel-strong)'; }}
-                    onMouseOut={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--panel)'; }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                        <strong style={{ color: 'var(--heading)', fontSize: '1.05rem' }}>{version.name}</strong>
-                        {isAdmin && (
-                          <button onClick={() => handleRestoreVersion(version)} style={{ background: 'var(--accent-soft)', border: 'none', color: 'var(--accent)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, transition: 'all 0.2s' }}
-                          onMouseOver={(e) => e.currentTarget.style.background = 'rgba(0, 212, 255, 0.3)'}
-                          onMouseOut={(e) => e.currentTarget.style.background = 'var(--accent-soft)'}
-                          >
-                            Restore
-                          </button>
-                        )}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--muted)' }}>
-                        <FaClock size={12} />
-                        {new Date(version.createdAt).toLocaleString()}
-                      </div>
-                      <div style={{ fontSize: '0.85rem', color: 'var(--muted)', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent)' }}></div>
-                        Saved by: <span style={{ color: 'var(--text)' }}>{version.savedBy}</span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
+        <UserList
+          users={usersWithFallback}
+          adminUsername={adminUsername}
+          currentUsername={username}
+          isAdmin={isAdmin}
+          onKickUser={kickUser}
+          onAssignAdmin={assignAdmin}
+          onToggleAccess={(targetSocketId) => socket.emit("toggle_user_access", { roomId, targetSocketId })}
+        />
       </aside>
 
       <main className="modern-main">
@@ -925,13 +867,12 @@ function Room() {
 
       <aside className="modern-right panel">
         <div className="tab-header">
-            <button className={`tab-btn ${activeTab === "users" ? "active" : ""}`} onClick={() => setActiveTab("users")} title="Team Members">
-              <FaUsers />
-              {users.length > 0 && <span className="tab-badge">{users.length}</span>}
-            </button>
-            <button className={`tab-btn ${activeTab === "history" ? "active" : ""}`} onClick={() => setActiveTab("history")} title="Version History">
-              <FaHistory />
-            </button> 
+          <button 
+            className={`tab-btn ${activeRightTab === "team" ? "active" : ""}`}
+            onClick={() => setActiveRightTab("team")}
+          >
+            Team Chat
+          </button>
           <button 
             className={`tab-btn ${activeRightTab === "ai" ? "active" : ""}`}
             onClick={() => setActiveRightTab("ai")}

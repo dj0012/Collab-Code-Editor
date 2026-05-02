@@ -7,11 +7,7 @@ const rateLimit = require("express-rate-limit");
 const { askAI } = require("./ai");
 const mongoose = require("mongoose");
 const Room = require("./models/Room");
-const User = require("./models/User");
-const Template = require("./models/Template");
-const Version = require("./models/Version");
-const jwt = require("jsonwebtoken");
-const JWT_SECRET = process.env.JWT_SECRET || "supersecretkey";
+
 if (process.env.MONGODB_URI) {
   mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log("Connected to MongoDB"))
@@ -34,128 +30,6 @@ const apiLimiter = rateLimit({
   max: 100, // Limit each IP to 100 requests per windowMs
 });
 app.use(apiLimiter);
-app.use(express.json());
-
-// Auth Routes
-app.post("/api/auth/register", async (req, res) => {
-  try {
-    if (!process.env.MONGODB_URI) return res.status(400).json({ error: "MongoDB not configured" });
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: "Username and password required" });
-    const existing = await User.findOne({ username });
-    if (existing) return res.status(400).json({ error: "Username already taken" });
-    
-    const user = new User({ username, password });
-    await user.save();
-    
-    const token = jwt.sign({ userId: user._id.toString(), username }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, username, userId: user._id.toString() });
-  } catch (err) {
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-app.post("/api/auth/login", async (req, res) => {
-  try {
-    if (!process.env.MONGODB_URI) return res.status(400).json({ error: "MongoDB not configured" });
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: "Username and password required" });
-    
-    const user = await User.findOne({ username });
-    if (!user) return res.status(400).json({ error: "Invalid credentials" });
-    
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });
-    
-    const token = jwt.sign({ userId: user._id.toString(), username }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, username, userId: user._id.toString() });
-  } catch (err) {
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-app.get("/api/user/rooms", async (req, res) => {
-  try {
-    if (!process.env.MONGODB_URI) return res.json([]);
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!token) return res.status(401).json({ error: "Unauthorized" });
-    const decoded = jwt.verify(token, JWT_SECRET);
-    
-    const userRooms = await Room.find({ adminId: decoded.userId }).sort({ updatedAt: -1 }).select('roomId updatedAt');
-    res.json(userRooms);
-  } catch (err) {
-    res.status(401).json({ error: "Invalid token" });
-  }
-});
-
-app.get("/api/templates", async (req, res) => {
-  try {
-    if (!process.env.MONGODB_URI) {
-      // Fallback templates if no DB
-      return res.json([
-        { _id: "1", name: "Blank", description: "Start from scratch", files: [] },
-        { _id: "2", name: "React App", description: "Basic React component", files: [{ id: "1", name: "App.jsx", language: "javascript", content: "export default function App() {\n  return <h1>Hello React</h1>;\n}" }] },
-        { _id: "3", name: "HTML/CSS", description: "Basic web page", files: [{ id: "1", name: "index.html", language: "html", content: "<h1>Hello World</h1>" }] }
-      ]);
-    }
-    const templates = await Template.find({});
-    res.json(templates);
-  } catch (err) {
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-app.get("/api/versions/:roomId", async (req, res) => {
-  try {
-    if (!process.env.MONGODB_URI) return res.json([]);
-    const versions = await Version.find({ roomId: req.params.roomId }).sort({ createdAt: -1 });
-    res.json(versions);
-  } catch (err) {
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-app.post("/api/versions", async (req, res) => {
-  try {
-    if (!process.env.MONGODB_URI) return res.json({ success: true });
-    const { roomId, name, savedBy, files } = req.body;
-    const version = new Version({ roomId, name, savedBy, files });
-    await version.save();
-    
-    // Broadcast to room that a new version was saved
-    io.to(roomId).emit("version_saved", version);
-    res.json(version);
-  } catch (err) {
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-const seedTemplates = async () => {
-  try {
-    if (!process.env.MONGODB_URI) return;
-    const count = await Template.countDocuments();
-    if (count === 0) {
-      await Template.insertMany([
-        { name: "Blank Project", description: "Start from scratch", files: [] },
-        { name: "React Boilerplate", description: "Simple React component", files: [
-            { id: "1", name: "App.jsx", language: "javascript", content: "import React from 'react';\n\nexport default function App() {\n  return (\n    <div>\n      <h1>Hello React</h1>\n    </div>\n  );\n}" }
-          ]
-        },
-        { name: "Web Basics", description: "HTML and CSS starter", files: [
-            { id: "1", name: "index.html", language: "html", content: "<!DOCTYPE html>\n<html>\n<body>\n  <h1>Hello World</h1>\n</body>\n</html>" },
-            { id: "2", name: "style.css", language: "css", content: "body {\n  font-family: sans-serif;\n}" }
-          ]
-        }
-      ]);
-      console.log("Templates seeded.");
-    }
-  } catch (err) {
-    console.error("Error seeding templates:", err);
-  }
-};
-if (process.env.MONGODB_URI) {
-  seedTemplates();
-}
 
 const server = http.createServer(app);
 
@@ -221,7 +95,7 @@ io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
   // 🔥 JOIN ROOM
-  socket.on("join_room", async ({ roomId, username, avatar, userId, initialFiles }) => {
+  socket.on("join_room", async ({ roomId, username, avatar, userId }) => {
     socket.join(roomId);
 
     socket.username = username;
@@ -255,7 +129,7 @@ io.on("connection", (socket) => {
           rooms[roomId] = {
             adminId: userId,
             users: [],
-            files: initialFiles || [],
+            files: [],
             whiteboard: [],
             messages: [],
             isLocked: false,

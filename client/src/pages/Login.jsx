@@ -1,36 +1,24 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaArrowRight, FaBolt, FaCodeBranch, FaUsers, FaUserPlus, FaSignInAlt, FaUserSecret } from "react-icons/fa";
-import { loginUser, registerUser } from "../services/api";
+import { FaArrowRight, FaBolt, FaCodeBranch, FaUsers } from "react-icons/fa";
 
 function Login() {
-  const [activeTab, setActiveTab] = useState("guest"); // "guest", "login", "register"
   const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
   const [roomId, setRoomId] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newRoomId, setNewRoomId] = useState("");
   const [logoPreview, setLogoPreview] = useState(null);
-  
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    // If already logged in, go to dashboard unless they have a roomId query param
-    const token = localStorage.getItem("collab_token");
     const params = new URLSearchParams(location.search);
     const roomParam = params.get("roomId");
-    
     if (roomParam) {
       setRoomId(roomParam);
-    } else if (token) {
-      navigate("/dashboard");
     }
-  }, [location.search, navigate]);
-
+  }, [location.search]);
   const generateRoomCode = () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@*_-";
     const array = new Uint8Array(16);
@@ -54,55 +42,18 @@ function Login() {
       finalRoomId = generateRoomCode();
     }
     
-    localStorage.setItem("collab_username", finalUsername);
     navigate(`/room/${finalRoomId}`, { state: { username: finalUsername, logo: logoPreview } });
   };
 
   const openCreateModal = () => {
-    if (activeTab !== "guest") {
-      // Direct them to dashboard instead if they try to create from login/register tabs
-      alert("Please login first to create saved rooms, or switch to Guest mode.");
-      return;
-    }
     setNewRoomId(generateRoomCode());
     setShowCreateModal(true);
   };
 
-  const joinGuestRoom = () => {
+  const joinRoom = () => {
     const normalizedRoomId = roomId.trim();
     if (!normalizedRoomId || !username) return alert("Enter details");
-    localStorage.setItem("collab_username", username);
     navigate(`/room/${normalizedRoomId}`, { state: { username } });
-  };
-
-  const handleAuth = async (e) => {
-    e.preventDefault();
-    if (!username || !password) return setError("Fill all fields");
-    
-    setLoading(true);
-    setError("");
-    try {
-      let data;
-      if (activeTab === "register") {
-        data = await registerUser(username, password);
-      } else {
-        data = await loginUser(username, password);
-      }
-      
-      localStorage.setItem("collab_token", data.token);
-      localStorage.setItem("collab_username", data.username);
-      localStorage.setItem("collab_userId", data.userId);
-      
-      if (roomId) {
-        navigate(`/room/${roomId}`, { state: { username: data.username } });
-      } else {
-        navigate("/dashboard");
-      }
-    } catch (err) {
-      setError(err.response?.data?.error || "Authentication failed");
-    } finally {
-      setLoading(false);
-    }
   };
 
   return (
@@ -206,113 +157,46 @@ function Login() {
           </div>
         </section>
 
-        <section className="auth-panel" style={{ height: 'fit-content' }}>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '32px', background: 'var(--panel)', border: '1px solid var(--border)', padding: '6px', borderRadius: 'var(--radius-lg)' }}>
-            <button 
-              onClick={() => { setActiveTab("guest"); setError(""); }}
-              style={{ flex: 1, padding: '12px', borderRadius: 'var(--radius-md)', border: 'none', background: activeTab === "guest" ? 'var(--accent)' : 'transparent', color: activeTab === "guest" ? '#000' : 'var(--muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', fontWeight: 600, fontSize: '0.9rem' }}
-            >
-              <FaUserSecret size={16} /> Guest
-            </button>
-            <button 
-              onClick={() => { setActiveTab("login"); setError(""); }}
-              style={{ flex: 1, padding: '12px', borderRadius: 'var(--radius-md)', border: 'none', background: activeTab === "login" ? 'var(--accent)' : 'transparent', color: activeTab === "login" ? '#000' : 'var(--muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', fontWeight: 600, fontSize: '0.9rem' }}
-            >
-              <FaSignInAlt size={16} /> Login
-            </button>
-            <button 
-              onClick={() => { setActiveTab("register"); setError(""); }}
-              style={{ flex: 1, padding: '12px', borderRadius: 'var(--radius-md)', border: 'none', background: activeTab === "register" ? 'var(--accent)' : 'transparent', color: activeTab === "register" ? '#000' : 'var(--muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', fontWeight: 600, fontSize: '0.9rem' }}
-            >
-              <FaUserPlus size={16} /> Register
-            </button>
-          </div>
-
-          <div className="panel-badge">{activeTab === "guest" ? "Start a session" : (activeTab === "login" ? "Welcome back" : "Create an account")}</div>
-          <h2>
-            {activeTab === "guest" && "Enter your collaborative workspace"}
-            {activeTab === "login" && "Sign in to your dashboard"}
-            {activeTab === "register" && "Join the platform"}
-          </h2>
+        <section className="auth-panel">
+          <div className="panel-badge">Start a session</div>
+          <h2>Enter your collaborative workspace</h2>
           <p className="panel-description">
-            {activeTab === "guest" && "Pick a username, join an existing room, or spin up a fresh one."}
-            {activeTab === "login" && "Access your saved rooms and settings."}
-            {activeTab === "register" && "Create an account to save your rooms permanently."}
+            Pick a username, join an existing room, or spin up a fresh one for
+            your next coding session.
           </p>
 
-          {error && (
-            <div style={{ padding: '12px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', borderRadius: '8px', marginBottom: '16px', fontSize: '0.9rem' }}>
-              {error}
-            </div>
-          )}
+          <div className="auth-form">
+            <label className="field">
+              <span>Display name</span>
+              <input
+                value={username}
+                placeholder="e.g. Dhananjay"
+                onChange={(e) => setUsername(e.target.value)}
+              />
+            </label>
 
-          {activeTab === "guest" ? (
-            <div className="auth-form">
-              <label className="field">
-                <span>Display name</span>
-                <input
-                  value={username}
-                  placeholder="e.g. Dhananjay"
-                  onChange={(e) => setUsername(e.target.value)}
-                />
-              </label>
+            <label className="field">
+              <span>Room code</span>
+              <input
+                value={roomId}
+                placeholder="Enter 16-digit room code"
+                inputMode="text"
+                maxLength={16}
+                onChange={(e) => setRoomId(e.target.value.slice(0, 16))}
+              />
+            </label>
 
-              <label className="field">
-                <span>Room code</span>
-                <input
-                  value={roomId}
-                  placeholder="Enter 16-digit room code"
-                  inputMode="text"
-                  maxLength={16}
-                  onChange={(e) => setRoomId(e.target.value.slice(0, 16))}
-                />
-              </label>
-
-              <div className="auth-actions">
-                <button className="primary-btn" onClick={joinGuestRoom}>
-                  Join room
-                  <FaArrowRight />
-                </button>
-
-                <button className="secondary-btn" onClick={openCreateModal}>
-                  Create new room
-                </button>
-              </div>
-            </div>
-          ) : (
-            <form className="auth-form" onSubmit={handleAuth}>
-              <label className="field">
-                <span>Username</span>
-                <input
-                  value={username}
-                  placeholder="e.g. dj_coder"
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                />
-              </label>
-
-              <label className="field">
-                <span>Password</span>
-                <input
-                  type="password"
-                  value={password}
-                  placeholder="••••••••"
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </label>
-              
-              {roomId && (
-                <div style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <FaBolt color="#f1c40f" /> You will join room <strong>{roomId}</strong> after {activeTab}
-                </div>
-              )}
-
-              <button type="submit" className="primary-btn" style={{ width: '100%', marginTop: '8px' }} disabled={loading}>
-                {loading ? "Processing..." : (activeTab === "login" ? "Sign In" : "Create Account")}
+            <div className="auth-actions">
+              <button className="primary-btn" onClick={joinRoom}>
+                Join room
+                <FaArrowRight />
               </button>
-            </form>
-          )}
+
+              <button className="secondary-btn" onClick={openCreateModal}>
+                Create new room
+              </button>
+            </div>
+          </div>
         </section>
       </motion.div>
     </div>
