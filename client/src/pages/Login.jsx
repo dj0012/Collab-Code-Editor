@@ -207,24 +207,24 @@ function Login() {
         </section>
 
         <section className="auth-panel" style={{ height: 'fit-content' }}>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '12px' }}>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '32px', background: 'var(--panel)', border: '1px solid var(--border)', padding: '6px', borderRadius: 'var(--radius-lg)' }}>
             <button 
               onClick={() => { setActiveTab("guest"); setError(""); }}
-              style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: activeTab === "guest" ? 'rgba(255,255,255,0.1)' : 'transparent', color: activeTab === "guest" ? '#fff' : 'var(--muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.2s', fontWeight: activeTab === "guest" ? '600' : '400' }}
+              style={{ flex: 1, padding: '12px', borderRadius: 'var(--radius-md)', border: 'none', background: activeTab === "guest" ? 'var(--accent)' : 'transparent', color: activeTab === "guest" ? '#000' : 'var(--muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', fontWeight: 600, fontSize: '0.9rem' }}
             >
-              <FaUserSecret /> Guest
+              <FaUserSecret size={16} /> Guest
             </button>
             <button 
               onClick={() => { setActiveTab("login"); setError(""); }}
-              style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: activeTab === "login" ? 'rgba(255,255,255,0.1)' : 'transparent', color: activeTab === "login" ? '#fff' : 'var(--muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.2s', fontWeight: activeTab === "login" ? '600' : '400' }}
+              style={{ flex: 1, padding: '12px', borderRadius: 'var(--radius-md)', border: 'none', background: activeTab === "login" ? 'var(--accent)' : 'transparent', color: activeTab === "login" ? '#000' : 'var(--muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', fontWeight: 600, fontSize: '0.9rem' }}
             >
-              <FaSignInAlt /> Login
+              <FaSignInAlt size={16} /> Login
             </button>
             <button 
               onClick={() => { setActiveTab("register"); setError(""); }}
-              style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: activeTab === "register" ? 'rgba(255,255,255,0.1)' : 'transparent', color: activeTab === "register" ? '#fff' : 'var(--muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.2s', fontWeight: activeTab === "register" ? '600' : '400' }}
+              style={{ flex: 1, padding: '12px', borderRadius: 'var(--radius-md)', border: 'none', background: activeTab === "register" ? 'var(--accent)' : 'transparent', color: activeTab === "register" ? '#000' : 'var(--muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', fontWeight: 600, fontSize: '0.9rem' }}
             >
-              <FaUserPlus /> Register
+              <FaUserPlus size={16} /> Register
             </button>
           </div>
 

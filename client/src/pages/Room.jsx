@@ -752,38 +752,51 @@ function Room() {
               onAssignAdmin={assignAdmin}
               onToggleAccess={(targetSocketId) => socket.emit("toggle_user_access", { roomId, targetSocketId })}
             />
-        )}
-
-        {activeTab === "history" && (
-            <div className="tab-content" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-              <div style={{ padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ margin: 0, fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--muted)' }}>Version History</h3>
+          {activeTab === "history" && (
+            <div className="tab-content" style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)' }}>
+              <div style={{ padding: '20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--panel-strong)' }}>
+                <h3 style={{ margin: 0, fontSize: '0.95rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--heading)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FaHistory color="var(--accent)" /> Version History
+                </h3>
                 {isAdmin && (
-                  <button onClick={handleSaveVersion} disabled={isSavingVersion} style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <button onClick={handleSaveVersion} disabled={isSavingVersion} style={{ background: 'var(--accent)', color: '#000', border: 'none', padding: '8px 16px', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s', opacity: isSavingVersion ? 0.7 : 1 }}>
                     <FaSave /> {isSavingVersion ? "Saving..." : "Save Snapshot"}
                   </button>
                 )}
               </div>
-              <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {versions.length === 0 ? (
-                  <p className="empty-state">No saved versions yet. Admins can save snapshots of the code to restore later.</p>
+                  <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ background: 'var(--panel)', padding: '16px', borderRadius: '50%' }}><FaClock size={24} opacity={0.5} /></div>
+                    <p style={{ margin: 0, lineHeight: 1.5 }}>No saved versions yet.<br/>Admins can save snapshots of the code to restore later.</p>
+                  </div>
                 ) : (
                   versions.map(version => (
-                    <div key={version._id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', padding: '12px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                        <strong style={{ color: 'var(--text)', fontSize: '0.95rem' }}>{version.name}</strong>
+                    <div key={version._id} style={{ 
+                      background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '16px',
+                      transition: 'all 0.2s', position: 'relative', overflow: 'hidden'
+                    }}
+                    onMouseOver={(e) => { e.currentTarget.style.borderColor = 'var(--accent-soft)'; e.currentTarget.style.background = 'var(--panel-strong)'; }}
+                    onMouseOut={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--panel)'; }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                        <strong style={{ color: 'var(--heading)', fontSize: '1.05rem' }}>{version.name}</strong>
                         {isAdmin && (
-                          <button onClick={() => handleRestoreVersion(version)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem' }}>
+                          <button onClick={() => handleRestoreVersion(version)} style={{ background: 'var(--accent-soft)', border: 'none', color: 'var(--accent)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, transition: 'all 0.2s' }}
+                          onMouseOver={(e) => e.currentTarget.style.background = 'rgba(0, 212, 255, 0.3)'}
+                          onMouseOut={(e) => e.currentTarget.style.background = 'var(--accent-soft)'}
+                          >
                             Restore
                           </button>
                         )}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--muted)' }}>
-                        <FaClock size={10} />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--muted)' }}>
+                        <FaClock size={12} />
                         {new Date(version.createdAt).toLocaleString()}
                       </div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: '4px' }}>
-                        Saved by: <span style={{ color: '#a5b4fc' }}>{version.savedBy}</span>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--muted)', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent)' }}></div>
+                        Saved by: <span style={{ color: 'var(--text)' }}>{version.savedBy}</span>
                       </div>
                     </div>
                   ))
