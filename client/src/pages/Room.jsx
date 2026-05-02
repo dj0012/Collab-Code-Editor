@@ -40,7 +40,15 @@ function Room() {
   const { roomId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const username = location.state?.username;
+  
+  // Try to get username from location state, fallback to sessionStorage
+  const username = location.state?.username || sessionStorage.getItem("collab_username");
+
+  useEffect(() => {
+    if (username) {
+      sessionStorage.setItem("collab_username", username);
+    }
+  }, [username]);
 
   const [files, setFiles] = useState([]);
   const [activeFileId, setActiveFileId] = useState("");
