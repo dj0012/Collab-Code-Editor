@@ -43,6 +43,16 @@ function Room() {
   
   // Try to get username from location state, fallback to sessionStorage
   const username = location.state?.username || sessionStorage.getItem("collab_username");
+  
+  // Create a persistent user ID for admin tracking
+  const [myUserId] = useState(() => {
+    let id = localStorage.getItem("collab_userId");
+    if (!id) {
+      id = "user_" + Math.random().toString(36).substring(2, 15);
+      localStorage.setItem("collab_userId", id);
+    }
+    return id;
+  });
 
   useEffect(() => {
     if (username) {
@@ -166,7 +176,7 @@ function Room() {
       localStorage.setItem(`avatar_${username}`, location.state.logo);
     }
 
-    socket.emit("join_room", { roomId, username, avatar: initialAvatar });
+    socket.emit("join_room", { roomId, username, avatar: initialAvatar, userId: myUserId });
 
     return () => {
       socket.off("connect", syncSocketId);
@@ -183,14 +193,14 @@ function Room() {
       socket.off("force_tab_switch", handleForceTabSwitch);
       socket.off("receive_announcement", handleAnnouncement);
     };
-  }, [navigate, roomId, username]);
+  }, [navigate, roomId, username, myUserId]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("theme", theme);
   }, [theme]);
 
-  const isAdmin = currentSocketId === adminId;
+  const isAdmin = myUserId === adminId;
 
   const fileExtensionMap = {
     javascript: "js",

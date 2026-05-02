@@ -322,7 +322,7 @@ int main() {
     if (!room || room.adminId !== socket.userId) return; // Only current admin can reassign
 
     // Verify the new admin is actually in the room
-    const userExists = room.users.some(user => user.socketId === newAdminId);
+    const userExists = room.users.some(user => user.userId === newAdminId);
     if (userExists) {
       room.adminId = newAdminId;
       emitRoomState(roomId);

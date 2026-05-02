@@ -117,7 +117,7 @@ function UserList({
                   </button>
                   <button
                     title="Make Admin"
-                    onClick={() => onAssignAdmin(user.socketId)}
+                    onClick={() => onAssignAdmin(user.userId)}
                     style={{
                       background: 'rgba(124, 164, 255, 0.15)',
                       color: '#7ca4ff',
