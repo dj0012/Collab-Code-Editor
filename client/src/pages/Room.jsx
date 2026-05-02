@@ -89,8 +89,13 @@ function Room() {
 
   const avatarColors = ["#ff4757", "#2ed573", "#1e90ff", "#ffa502", "#ff6b81", "#7bed9f", "#70a1ff", "#eccc68", "#ff7f50", "#9b59b6", "#3498db", "#1abc9c", "#e74c3c"];
   const avatarColor = useMemo(() => {
-    return avatarColors[Math.floor(Math.random() * avatarColors.length)];
-  }, []);
+    let hash = 0;
+    const nameStr = username || "Guest";
+    for (let i = 0; i < nameStr.length; i++) {
+      hash = nameStr.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return avatarColors[Math.abs(hash) % avatarColors.length];
+  }, [username]);
 
   useEffect(() => {
     if (!username) {
