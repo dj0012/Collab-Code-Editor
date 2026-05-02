@@ -26,4 +26,6 @@ const roomSchema = new mongoose.Schema({
   messages: [messageSchema]
 }, { timestamps: true });
 
+roomSchema.index({ updatedAt: 1 }, { expireAfterSeconds: 86400 });
+
 module.exports = mongoose.model('Room', roomSchema);
