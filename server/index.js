@@ -86,7 +86,7 @@ const removeUserFromRoom = (roomId, socketId) => {
   }
 
   if (room.users.length === 0) {
-    delete rooms[roomId];
+    // Room is empty, but we keep it in memory so data isn't lost on quick refresh
     return;
   }
 
