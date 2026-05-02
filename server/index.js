@@ -125,7 +125,7 @@ io.on("connection", (socket) => {
         };
       } else {
         rooms[roomId] = {
-          adminId: socket.id,
+          adminId: userId,
           users: [],
           files: [],
           whiteboard: [],
