@@ -112,28 +112,31 @@ io.on("connection", (socket) => {
         }
       }
 
-      if (dbRoom) {
-        rooms[roomId] = {
-          adminId: dbRoom.adminId || userId,
-          users: [],
-          files: dbRoom.files || [],
-          whiteboard: [],
-          messages: dbRoom.messages || [],
-          isLocked: dbRoom.isLocked || false,
-          isReadOnly: dbRoom.isReadOnly || false,
-          isChatMuted: dbRoom.isChatMuted || false,
-        };
-      } else {
-        rooms[roomId] = {
-          adminId: userId,
-          users: [],
-          files: [],
-          whiteboard: [],
-          messages: [],
-          isLocked: false,
-          isReadOnly: false,
-          isChatMuted: false,
-        };
+      // Check again to avoid async race condition when multiple users join simultaneously
+      if (!rooms[roomId]) {
+        if (dbRoom) {
+          rooms[roomId] = {
+            adminId: dbRoom.adminId || userId,
+            users: [],
+            files: dbRoom.files || [],
+            whiteboard: [],
+            messages: dbRoom.messages || [],
+            isLocked: dbRoom.isLocked || false,
+            isReadOnly: dbRoom.isReadOnly || false,
+            isChatMuted: dbRoom.isChatMuted || false,
+          };
+        } else {
+          rooms[roomId] = {
+            adminId: userId,
+            users: [],
+            files: [],
+            whiteboard: [],
+            messages: [],
+            isLocked: false,
+            isReadOnly: false,
+            isChatMuted: false,
+          };
+        }
       }
     }
 

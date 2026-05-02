@@ -5,7 +5,7 @@ const URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5001";
 
 // 🔥 Create socket
 const socket = io(URL, {
-  transports: ["websocket"],
+  transports: ["websocket", "polling"],
   reconnection: true,
   reconnectionAttempts: 5,
   reconnectionDelay: 1000,
