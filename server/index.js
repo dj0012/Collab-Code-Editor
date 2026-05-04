@@ -84,19 +84,27 @@ server.on("upgrade", (request, socket, head) => {
     const docName = request.url.split("/").pop();
     request.url = "/" + docName;
     
-    // Pre-hydrate Yjs document from memory if it doesn't exist yet
+    let needsHydration = false;
     if (!docs.has(docName) && rooms[docName]) {
-      const ydoc = new Y.Doc();
-      const yfiles = ydoc.getMap("files");
-      rooms[docName].files.forEach(f => {
-        const ytext = new Y.Text(f.content || "");
-        yfiles.set(f.id, ytext);
-      });
-      docs.set(docName, ydoc);
+      needsHydration = true;
     }
 
     wss.handleUpgrade(request, socket, head, (ws) => {
       wss.emit("connection", ws, request);
+      
+      // Hydrate the Yjs document AFTER y-websocket has properly initialized it
+      if (needsHydration) {
+        const ydoc = docs.get(docName);
+        if (ydoc) {
+          const yfiles = ydoc.getMap("files");
+          rooms[docName].files.forEach(f => {
+            if (!yfiles.has(f.id)) {
+              const ytext = new Y.Text(f.content || "");
+              yfiles.set(f.id, ytext);
+            }
+          });
+        }
+      }
     });
   }
 });

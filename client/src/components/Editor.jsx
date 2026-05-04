@@ -70,7 +70,6 @@ function CodeEditor({ roomId, activeFileId, code, setCode, language, users = [],
   };
 
   useEffect(() => {
-    activeFileIdRef.current = activeFileId;
     setupBinding();
   }, [activeFileId]);
 
