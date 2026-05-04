@@ -1,4 +1,5 @@
 const express = require("express");
+const axios = require("axios");
 const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
@@ -30,6 +31,30 @@ const apiLimiter = rateLimit({
   max: 100, // Limit each IP to 100 requests per windowMs
 });
 app.use(apiLimiter);
+app.use(express.json());
+
+app.post("/api/execute", async (req, res) => {
+  try {
+    const { code, languageId } = req.body;
+    const apiKey = process.env.RAPIDAPI_KEY || "556bc9d3a0mshc2c011f74f308a9p1ab0c3jsn4172e0fbe926";
+    
+    const response = await axios.post("https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true", {
+      source_code: code,
+      language_id: languageId
+    }, {
+      headers: {
+        "X-RapidAPI-Key": apiKey,
+        "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
+        "Content-Type": "application/json",
+      }
+    });
+
+    res.json(response.data);
+  } catch (error) {
+    console.error("Code execution error:", error.response?.data || error.message);
+    res.status(500).json({ error: "Failed to execute code" });
+  }
+});
 
 const server = http.createServer(app);
 

@@ -21,11 +21,14 @@ import {
   FaRotateLeft,
   FaSun,
   FaUsers,
-  FaWhatsapp,
-  FaEnvelope,
-  FaCopy,
   FaPen,
 } from "react-icons/fa6";
+
+import ShareModal from "../components/Modals/ShareModal";
+import ProfileModal from "../components/Modals/ProfileModal";
+import DownloadModal from "../components/Modals/DownloadModal";
+import CreateFileModal from "../components/Modals/CreateFileModal";
+import CreateWhiteboardModal from "../components/Modals/CreateWhiteboardModal";
 
 const LANGUAGE_OPTIONS = [
   { label: "JavaScript", value: "javascript", judge0Id: 63 },
@@ -509,181 +512,50 @@ function Room() {
         onClearOutput={clearOutput}
         onResetCode={resetCode}
       />
-      {showCreateFileModal && (
-        <div className="modal-backdrop" onClick={() => setShowCreateFileModal(false)} style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}>
-          <div className="auth-panel" onClick={(e) => e.stopPropagation()} style={{ position: 'relative', width: '400px', maxWidth: '90%', padding: '32px' }}>
-            <button className="modern-chip chip-button icon-only" onClick={() => setShowCreateFileModal(false)} style={{ position: 'absolute', top: '16px', right: '16px' }}>
-              ✕
-            </button>
-            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '1.4rem', margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><FaCode color="var(--accent)" /> Create New File</h2>
-              <p className="auth-description" style={{ marginTop: '8px' }}>Enter a file name with a valid extension (e.g., .js, .py, .cpp).</p>
-            </div>
-            <form onSubmit={handleCreateFileSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <input
-                  type="text"
-                  placeholder="e.g. index.js"
-                  value={newFileName}
-                  onChange={(e) => {
-                    setNewFileName(e.target.value);
-                    setCreateFileError("");
-                  }}
-                  className="auth-input"
-                  autoFocus
-                  style={{ width: '100%' }}
-                />
-                {createFileError && <div style={{ color: '#ff4757', fontSize: '0.85rem', marginTop: '8px', textAlign: 'center' }}>{createFileError}</div>}
-              </div>
-              <button type="submit" className="primary-btn" style={{ width: '100%' }}>Create File</button>
-            </form>
-          </div>
-        </div>
-      )}
+      <CreateFileModal
+        isOpen={showCreateFileModal}
+        onClose={() => setShowCreateFileModal(false)}
+        onSubmit={handleCreateFileSubmit}
+        newFileName={newFileName}
+        setNewFileName={setNewFileName}
+        error={createFileError}
+        setError={setCreateFileError}
+      />
 
-      {showCreateWhiteboardModal && (
-        <div className="modal-backdrop" onClick={() => setShowCreateWhiteboardModal(false)} style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}>
-          <div className="auth-panel" onClick={(e) => e.stopPropagation()} style={{ position: 'relative', width: '400px', maxWidth: '90%', padding: '32px' }}>
-            <button className="modern-chip chip-button icon-only" onClick={() => setShowCreateWhiteboardModal(false)} style={{ position: 'absolute', top: '16px', right: '16px' }}>
-              ✕
-            </button>
-            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '1.4rem', margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><FaPen color="var(--accent)" /> Create Whiteboard</h2>
-              <p className="auth-description" style={{ marginTop: '8px' }}>Give your new collaborative whiteboard a name.</p>
-            </div>
-            <form onSubmit={handleCreateWhiteboardSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <input
-                  type="text"
-                  placeholder="e.g. architecture"
-                  value={newFileName}
-                  onChange={(e) => {
-                    setNewFileName(e.target.value);
-                    setCreateFileError("");
-                  }}
-                  className="auth-input"
-                  autoFocus
-                  style={{ width: '100%' }}
-                />
-                {createFileError && <div style={{ color: '#ff4757', fontSize: '0.85rem', marginTop: '8px', textAlign: 'center' }}>{createFileError}</div>}
-              </div>
-              <button type="submit" className="primary-btn" style={{ width: '100%' }}>Create Whiteboard</button>
-            </form>
-          </div>
-        </div>
-      )}
+      <CreateWhiteboardModal
+        isOpen={showCreateWhiteboardModal}
+        onClose={() => setShowCreateWhiteboardModal(false)}
+        onSubmit={handleCreateWhiteboardSubmit}
+        newFileName={newFileName}
+        setNewFileName={setNewFileName}
+        error={createFileError}
+        setError={setCreateFileError}
+      />
 
-      {showDownloadModal && (
-        <div className="modal-backdrop" onClick={() => setShowDownloadModal(false)} style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}>
-          <div className="auth-panel" onClick={(e) => e.stopPropagation()} style={{ position: 'relative', width: '400px', maxWidth: '90%', padding: '32px' }}>
-            <button className="modern-chip chip-button icon-only" onClick={() => setShowDownloadModal(false)} style={{ position: 'absolute', top: '16px', right: '16px' }}>
-              ✕
-            </button>
-            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '1.4rem', margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><FaDownload color="var(--accent)" /> Download Options</h2>
-              <p className="auth-description" style={{ marginTop: '8px' }}>Choose how you want to download your project files.</p>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <button 
-                className="secondary-btn" 
-                onClick={handleDownloadCurrent}
-                disabled={!activeFile.id}
-                style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', padding: '12px', fontSize: '1rem', background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text)', border: '1px solid rgba(255, 255, 255, 0.1)', opacity: !activeFile.id ? 0.5 : 1, cursor: !activeFile.id ? 'not-allowed' : 'pointer' }}
-              >
-                <FaCode /> Download Current File ({activeFile.name || "None"})
-              </button>
-              
-              <button 
-                className="primary-btn" 
-                onClick={handleDownloadZip}
-                disabled={files.length === 0}
-                style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', padding: '12px', fontSize: '1rem', background: 'linear-gradient(135deg, #00d4ff, #9b59b6)', opacity: files.length === 0 ? 0.5 : 1, cursor: files.length === 0 ? 'not-allowed' : 'pointer' }}
-              >
-                <FaDownload /> Download All as ZIP ({files.length} files)
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DownloadModal
+        isOpen={showDownloadModal}
+        onClose={() => setShowDownloadModal(false)}
+        activeFile={activeFile}
+        files={files}
+        onDownloadCurrent={handleDownloadCurrent}
+        onDownloadZip={handleDownloadZip}
+      />
 
-      {showShareModal && (
-        <div className="modal-backdrop" onClick={() => setShowShareModal(false)} style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}>
-          <div className="auth-panel" onClick={(e) => e.stopPropagation()} style={{ position: 'relative', width: '420px', maxWidth: '90%', padding: '32px' }}>
-            <button className="modern-chip chip-button icon-only" onClick={() => setShowShareModal(false)} style={{ position: 'absolute', top: '16px', right: '16px' }}>
-              ✕
-            </button>
-            
-            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-              <div className="panel-badge" style={{ margin: '0 auto 12px auto' }}>Share Room</div>
-              <h2 style={{ fontSize: '1.4rem', margin: 0 }}>Invite Team Members</h2>
-              <p className="auth-description" style={{ marginTop: '8px' }}>Send this link to anyone you want to collaborate with in real-time.</p>
-            </div>
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        roomId={roomId}
+      />
 
-            <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '12px', padding: '16px', marginBottom: '24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Room Code</span>
-                <span style={{ background: 'rgba(0, 212, 255, 0.1)', color: '#00d4ff', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>Active</span>
-              </div>
-              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', letterSpacing: '1px', color: 'var(--text)', wordBreak: 'break-all' }}>
-                {roomId}
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <button className="primary-btn" onClick={() => {
-                const link = `${window.location.origin}/?roomId=${roomId}`;
-                navigator.clipboard.writeText(link);
-                alert("Invite link copied to clipboard!");
-              }} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', padding: '12px', fontSize: '1rem', background: 'linear-gradient(135deg, #00d4ff, #9b59b6)' }}>
-                <FaCopy /> Copy Invite Link
-              </button>
-              
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <button className="secondary-btn" onClick={() => {
-                  const link = `${window.location.origin}/?roomId=${roomId}`;
-                  window.open(`https://wa.me/?text=Join my live coding session!%0A%0ARoom ID: ${roomId}%0ALink: ${encodeURIComponent(link)}`);
-                }} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', background: 'rgba(37, 211, 102, 0.1)', color: '#25D366', border: '1px solid rgba(37, 211, 102, 0.2)' }}>
-                  <FaWhatsapp size={18} /> WhatsApp
-                </button>
-                <button className="secondary-btn" onClick={() => {
-                  const link = `${window.location.origin}/?roomId=${roomId}`;
-                  window.open(`mailto:?subject=Join my coding session&body=Hey! Join my live coding session on Collab Code Editor.%0A%0ARoom ID: ${roomId}%0ALink: ${encodeURIComponent(link)}`);
-                }} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                  <FaEnvelope size={18} /> Email
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showProfileModal && (
-        <div className="modal-backdrop" onClick={() => setShowProfileModal(false)} style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}>
-          <div className="auth-panel" onClick={(e) => e.stopPropagation()} style={{ position: 'relative', width: '320px', maxWidth: '90%', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <button className="modern-chip chip-button icon-only" onClick={() => setShowProfileModal(false)} style={{ position: 'absolute', top: '16px', right: '16px' }}>
-              ✕
-            </button>
-            <label style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '50%', background: currentAvatar ? 'rgba(255,255,255,0.1)' : avatarColor, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px', overflow: 'hidden', border: '2px solid rgba(255,255,255,0.1)' }}>
-                {currentAvatar ? (
-                  <img src={currentAvatar} alt="User Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <span style={{ fontSize: '36px', fontWeight: 'bold', color: '#fff' }}>{username?.charAt(0).toUpperCase()}</span>
-                )}
-                <div style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', background: 'rgba(0,0,0,0.5)', padding: '2px 0', fontSize: '10px', color: '#fff', textAlign: 'center' }}>Edit</div>
-              </div>
-              <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: 'none' }} />
-            </label>
-            <h2 style={{ marginBottom: '4px', marginTop: '8px' }}>{username}</h2>
-            <p className="auth-description" style={{ marginBottom: '24px' }}>
-              {isAdmin ? "Room Administrator" : "Room Member"}
-            </p>
-            <button className="primary-btn" onClick={() => navigate("/")} style={{ width: '100%', background: 'var(--accent-strong)' }}>
-              Leave Room
-            </button>
-          </div>
-        </div>
-      )}
+      <ProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        username={username}
+        currentAvatar={currentAvatar}
+        avatarColor={avatarColor}
+        isAdmin={isAdmin}
+        handleAvatarChange={handleAvatarChange}
+      />
 
       <header className="modern-topbar">
         <div className="topbar-title">
