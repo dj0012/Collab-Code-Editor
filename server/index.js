@@ -41,7 +41,10 @@ app.use(express.json());
 app.post("/api/execute", async (req, res) => {
   try {
     const { code, languageId } = req.body;
-    const apiKey = process.env.RAPIDAPI_KEY || "556bc9d3a0mshc2c011f74f308a9p1ab0c3jsn4172e0fbe926";
+    const apiKey = process.env.RAPIDAPI_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: "Server missing RAPIDAPI_KEY configuration." });
+    }
     
     const response = await axios.post("https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true", {
       source_code: code,
