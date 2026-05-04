@@ -335,7 +335,7 @@ int main() {
 
   socket.on("rename_file", ({ roomId, fileId, newName }) => {
     const room = rooms[roomId];
-    if (room) {
+    if (room && room.adminId === socket.userId) {
       const file = room.files.find(f => f.id === fileId);
       if (file) {
         file.name = newName;
@@ -522,7 +522,7 @@ int main() {
 
     if (!room) return;
     const user = room.users.find(u => u.socketId === socket.id);
-    if (room.isChatMuted && room.adminId !== socket.userId && (!user || !user.canEdit)) return; // ENFORCE CHAT MUTE
+    if (room.isChatMuted && room.adminId !== socket.userId) return; // ENFORCE CHAT MUTE
     if (typeof message !== "string" || !message.trim() || message.length > 500) return; // Validation
 
     const chatMessage = {

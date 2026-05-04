@@ -12,6 +12,7 @@ import { FaPlay, FaRobot, FaTerminal, FaCrown, FaBullhorn } from "react-icons/fa
 import { motion, AnimatePresence } from "framer-motion";
 import AIChat from "../components/AIChat";
 import AdminControlsModal from "../components/AdminControlsModal";
+import ErrorBoundary from "../components/ErrorBoundary";
 import {
   FaCode,
   FaDownload,
@@ -778,18 +779,20 @@ function Room() {
                   )}
                 </div>
               ) : (
-                <CodeEditor
-                  roomId={roomId}
-                  activeFileId={activeFile.id}
-                  code={code}
-                  setCode={(newContent) => {
-                    setFiles(prev => prev.map(f => f.id === activeFile.id ? { ...f, content: newContent } : f));
-                  }}
-                  language={language?.value || "javascript"}
-                  users={users}
-                  currentSocketId={currentSocketId}
-                  isReadOnly={isReadOnly && !hasAccess}
-                />
+                <ErrorBoundary>
+                  <CodeEditor
+                    roomId={roomId}
+                    activeFileId={activeFile.id}
+                    code={code}
+                    setCode={(newContent) => {
+                      setFiles(prev => prev.map(f => f.id === activeFile.id ? { ...f, content: newContent } : f));
+                    }}
+                    language={language?.value || "javascript"}
+                    users={users}
+                    currentSocketId={currentSocketId}
+                    isReadOnly={isReadOnly && !hasAccess}
+                  />
+                </ErrorBoundary>
               )}
             </div>
           </div>
