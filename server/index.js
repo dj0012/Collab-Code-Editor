@@ -2,6 +2,11 @@ const express = require("express");
 const axios = require("axios");
 const http = require("http");
 const { Server } = require("socket.io");
+const { createClient } = require("redis");
+const { createAdapter } = require("@socket.io/redis-adapter");
+const WebSocket = require("ws");
+const Y = require("yjs");
+const { setupWSConnection, docs } = require("y-websocket/bin/utils");
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
@@ -61,6 +66,41 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: ALLOWED_ORIGINS },
 });
+
+let redisClient;
+if (process.env.REDIS_URL) {
+  const pubClient = createClient({ url: process.env.REDIS_URL });
+  const subClient = pubClient.duplicate();
+  Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
+    io.adapter(createAdapter(pubClient, subClient));
+    redisClient = pubClient;
+    console.log("Connected to Redis and set up Socket.IO adapter");
+  }).catch(err => console.error("Redis connection error:", err));
+}
+
+const wss = new WebSocket.Server({ noServer: true });
+server.on("upgrade", (request, socket, head) => {
+  if (request.url.startsWith("/yjs/")) {
+    const docName = request.url.split("/").pop();
+    request.url = "/" + docName;
+    
+    // Pre-hydrate Yjs document from memory if it doesn't exist yet
+    if (!docs.has(docName) && rooms[docName]) {
+      const ydoc = new Y.Doc();
+      const yfiles = ydoc.getMap("files");
+      rooms[docName].files.forEach(f => {
+        const ytext = new Y.Text(f.content || "");
+        yfiles.set(f.id, ytext);
+      });
+      docs.set(docName, ydoc);
+    }
+
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit("connection", ws, request);
+    });
+  }
+});
+wss.on("connection", setupWSConnection);
 
 const DEFAULT_LANGUAGE = {
   label: "JavaScript",
@@ -129,7 +169,17 @@ io.on("connection", (socket) => {
 
     if (!rooms[roomId]) {
       let dbRoom = null;
-      if (process.env.MONGODB_URI) {
+      
+      if (redisClient) {
+        try {
+          const redisData = await redisClient.get(`room:${roomId}`);
+          if (redisData) dbRoom = JSON.parse(redisData);
+        } catch (err) {
+          console.error("Error fetching room from Redis:", err);
+        }
+      }
+
+      if (!dbRoom && process.env.MONGODB_URI) {
         try {
           dbRoom = await Room.findOne({ roomId });
         } catch (err) {
@@ -555,10 +605,34 @@ int main() {
 
 // 🔥 BACKGROUND DB SYNC
 setInterval(async () => {
-  if (!process.env.MONGODB_URI) return;
-  
   const activeRoomIds = Object.keys(rooms);
   if (activeRoomIds.length === 0) return;
+
+  // Extract Yjs CRDT text back into string files for database saving & execution
+  for (const roomId of activeRoomIds) {
+    const ydoc = docs.get(roomId);
+    if (ydoc && rooms[roomId]) {
+      const yfiles = ydoc.getMap("files");
+      rooms[roomId].files.forEach(f => {
+        const ytext = yfiles.get(f.id);
+        if (ytext) {
+          f.content = ytext.toString();
+        }
+      });
+    }
+  }
+
+  if (redisClient) {
+    try {
+      for (const roomId of activeRoomIds) {
+        await redisClient.set(`room:${roomId}`, JSON.stringify(rooms[roomId]));
+      }
+    } catch (err) {
+      console.error("Redis sync error:", err);
+    }
+  }
+
+  if (!process.env.MONGODB_URI) return;
 
   try {
     const bulkOps = activeRoomIds.map(roomId => {

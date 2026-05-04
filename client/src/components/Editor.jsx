@@ -2,157 +2,87 @@ import { useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
 import socket from "../services/socket";
 import { motion } from "framer-motion";
+import * as Y from "yjs";
+import { WebsocketProvider } from "y-websocket";
+import { MonacoBinding } from "y-monaco";
 
 const avatarColors = ["#ff4757", "#2ed573", "#1e90ff", "#ffa502", "#ff6b81", "#7bed9f", "#70a1ff", "#eccc68", "#ff7f50", "#9b59b6", "#3498db", "#1abc9c", "#e74c3c"];
 
 function CodeEditor({ roomId, activeFileId, code, setCode, language, users = [], currentSocketId, isReadOnly = false }) {
   const editorRef = useRef(null);
   const monacoRef = useRef(null);
-  const decorationsRef = useRef({});
-  const activeFileIdRef = useRef(activeFileId);
+  const ydocRef = useRef(null);
+  const providerRef = useRef(null);
+  const bindingRef = useRef(null);
+  const yfilesRef = useRef(null);
+
+  useEffect(() => {
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5001";
+    const wsUrl = BACKEND_URL.replace(/^http/, 'ws') + '/yjs';
+    
+    ydocRef.current = new Y.Doc();
+    providerRef.current = new WebsocketProvider(wsUrl, roomId, ydocRef.current);
+    yfilesRef.current = ydocRef.current.getMap("files");
+
+    return () => {
+      if (bindingRef.current) bindingRef.current.destroy();
+      if (providerRef.current) providerRef.current.destroy();
+      if (ydocRef.current) ydocRef.current.destroy();
+    };
+  }, [roomId]);
+
+  // Update awareness when user data changes
+  useEffect(() => {
+    if (providerRef.current && users.length > 0) {
+      const user = users.find(u => u.socketId === currentSocketId);
+      if (user) {
+        providerRef.current.awareness.setLocalStateField('user', {
+          name: user.username,
+          color: avatarColors[Math.abs(user.username.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)) % avatarColors.length]
+        });
+      }
+    }
+  }, [users, currentSocketId]);
+
+  const setupBinding = () => {
+    if (!editorRef.current || !yfilesRef.current || !providerRef.current || !activeFileId) return;
+    
+    if (bindingRef.current) {
+      bindingRef.current.destroy();
+    }
+
+    let ytext = yfilesRef.current.get(activeFileId);
+    if (!ytext) {
+      // If the backend hasn't populated it yet, we start with the code string we have locally
+      ytext = new Y.Text(code || "");
+      yfilesRef.current.set(activeFileId, ytext);
+    }
+
+    bindingRef.current = new MonacoBinding(
+      ytext, 
+      editorRef.current.getModel(), 
+      new Set([editorRef.current]), 
+      providerRef.current.awareness
+    );
+
+    // Sync initial code to parent for Run Code feature
+    setCode(ytext.toString());
+  };
 
   useEffect(() => {
     activeFileIdRef.current = activeFileId;
+    setupBinding();
   }, [activeFileId]);
 
   const handleEditorDidMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
-
-    // Send local cursor position to others
-    editor.onDidChangeCursorSelection((e) => {
-      const selection = e.selection;
-      const cursorData = {
-        fileId: activeFileIdRef.current,
-        position: e.position,
-        selection: {
-          startLineNumber: selection.startLineNumber,
-          startColumn: selection.startColumn,
-          endLineNumber: selection.endLineNumber,
-          endColumn: selection.endColumn,
-        }
-      };
-      socket.emit("cursor_change", { roomId, cursorData });
-    });
+    setupBinding();
   };
 
-  useEffect(() => {
-    // Clear decorations when switching files
-    Object.keys(decorationsRef.current).forEach(socketId => {
-      decorationsRef.current[socketId].clear();
-      delete decorationsRef.current[socketId];
-    });
-  }, [activeFileId]);
-
-  useEffect(() => {
-    const handleCursorUpdate = ({ socketId, cursorData }) => {
-      if (!editorRef.current || !monacoRef.current || socketId === currentSocketId || cursorData.fileId !== activeFileId) return;
-
-      const user = users.find(u => u.socketId === socketId);
-      if (!user) return;
-
-      const monaco = monacoRef.current;
-      
-      // Hash the socketId to pick a consistent color
-      const colorIndex = Math.abs(socketId.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)) % avatarColors.length;
-      const color = avatarColors[colorIndex];
-
-      const newDecorations = [];
-      const className = `cursor-${socketId}`;
-      
-      // Inject CSS dynamically for the cursor styling if it doesn't exist
-      let styleEl = document.getElementById(`style-${socketId}`);
-      if (!styleEl) {
-        styleEl = document.createElement("style");
-        styleEl.id = `style-${socketId}`;
-        styleEl.innerHTML = `
-          .${className} {
-            border-left: 2px solid ${color};
-            position: relative;
-            z-index: 99;
-          }
-          .${className}::before {
-            content: '${user.username}';
-            position: absolute;
-            top: -20px;
-            left: -2px;
-            background-color: ${color};
-            color: #fff;
-            font-size: 10px;
-            padding: 2px 6px;
-            border-radius: 4px;
-            white-space: nowrap;
-            pointer-events: none;
-            font-family: var(--sans);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-          }
-          .selection-${socketId} {
-            background-color: ${color}40;
-          }
-        `;
-        document.head.appendChild(styleEl);
-      }
-
-      // Selection decoration
-      if (
-        cursorData.selection &&
-        (cursorData.selection.startLineNumber !== cursorData.selection.endLineNumber ||
-         cursorData.selection.startColumn !== cursorData.selection.endColumn)
-      ) {
-        newDecorations.push({
-          range: new monaco.Range(
-            cursorData.selection.startLineNumber,
-            cursorData.selection.startColumn,
-            cursorData.selection.endLineNumber,
-            cursorData.selection.endColumn
-          ),
-          options: {
-            className: `selection-${socketId}`,
-          }
-        });
-      }
-
-      // Cursor position decoration
-      newDecorations.push({
-        range: new monaco.Range(
-          cursorData.position.lineNumber,
-          cursorData.position.column,
-          cursorData.position.lineNumber,
-          cursorData.position.column
-        ),
-        options: {
-          className: className,
-        }
-      });
-
-      if (!decorationsRef.current[socketId]) {
-         decorationsRef.current[socketId] = editorRef.current.createDecorationsCollection(newDecorations);
-      } else {
-         decorationsRef.current[socketId].set(newDecorations);
-      }
-    };
-
-    const handleCursorRemove = ({ socketId }) => {
-      if (decorationsRef.current[socketId]) {
-        decorationsRef.current[socketId].clear();
-        delete decorationsRef.current[socketId];
-      }
-      const styleEl = document.getElementById(`style-${socketId}`);
-      if (styleEl) styleEl.remove();
-    };
-
-    socket.on("cursor_update", handleCursorUpdate);
-    socket.on("cursor_remove", handleCursorRemove);
-
-    return () => {
-      socket.off("cursor_update", handleCursorUpdate);
-      socket.off("cursor_remove", handleCursorRemove);
-    };
-  }, [users, currentSocketId]);
-
   const handleChange = (value) => {
+    // Keep Room.jsx state updated for Run Code/Download, but do NOT emit socket events! Yjs handles it.
     setCode(value);
-    socket.emit("file_change", { roomId, fileId: activeFileId, content: value });
   };
 
   return (
@@ -166,7 +96,6 @@ function CodeEditor({ roomId, activeFileId, code, setCode, language, users = [],
       <Editor
         height="100%"
         language={language}
-        value={code}
         onChange={handleChange}
         onMount={handleEditorDidMount}
         theme="vs-dark"
