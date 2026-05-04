@@ -245,16 +245,16 @@ int main() {
 }`
   };
 
-  socket.on("create_file", ({ roomId, name, language }) => {
+  socket.on("create_file", ({ roomId, name, language, content }) => {
     const room = rooms[roomId];
     if (room) {
-      const lang = language || DEFAULT_LANGUAGE;
-      const initialContent = lang !== "whiteboard" && BOILERPLATES[lang] 
-        ? BOILERPLATES[lang] 
-        : "";
+      const lang = language || "javascript";
+      const initialContent = content !== undefined 
+        ? content 
+        : (lang !== "whiteboard" && BOILERPLATES[lang] ? BOILERPLATES[lang] : "");
         
       const newFile = { 
-        id: Date.now().toString(), 
+        id: Date.now().toString() + "_" + Math.random().toString(36).substr(2, 9), 
         name, 
         content: initialContent, 
         language: lang 

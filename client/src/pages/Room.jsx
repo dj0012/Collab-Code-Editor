@@ -89,6 +89,7 @@ function Room() {
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [isChatMuted, setIsChatMuted] = useState(false);
   const [announcement, setAnnouncement] = useState(null);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
 
   const avatarColors = ["#ff4757", "#2ed573", "#1e90ff", "#ffa502", "#ff6b81", "#7bed9f", "#70a1ff", "#eccc68", "#ff7f50", "#9b59b6", "#3498db", "#1abc9c", "#e74c3c"];
   const avatarColor = useMemo(() => {
@@ -447,8 +448,91 @@ function Room() {
     }
   };
 
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    if (isAdmin) setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+
+    if (!isAdmin) return;
+
+    const items = e.dataTransfer.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.kind === 'file') {
+        const entry = item.webkitGetAsEntry();
+        if (entry) {
+          scanFiles(entry);
+        }
+      }
+    }
+  };
+
+  const scanFiles = (item, path = '') => {
+    if (item.isFile) {
+      item.file((file) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const content = e.target.result;
+          const ext = file.name.split('.').pop().toLowerCase();
+          
+          let language = "javascript";
+          if (ext === 'py') language = 'python';
+          else if (ext === 'java') language = 'java';
+          else if (ext === 'cpp' || ext === 'cc' || ext === 'cxx') language = 'cpp';
+          else if (ext === 'c') language = 'c';
+          else if (ext === 'json' || ext === 'md' || ext === 'txt' || ext === 'html' || ext === 'css') {
+            language = "javascript";
+          }
+
+          socket.emit("create_file", { 
+            roomId, 
+            name: path + file.name, 
+            language,
+            content
+          });
+        };
+        reader.readAsText(file);
+      });
+    } else if (item.isDirectory) {
+      const dirReader = item.createReader();
+      dirReader.readEntries((entries) => {
+        entries.forEach((entry) => {
+          scanFiles(entry, path + item.name + '/');
+        });
+      });
+    }
+  };
+
   return (
-    <div className="workspace-shell modern-shell">
+    <div 
+      className="workspace-shell modern-shell"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {isDraggingOver && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 212, 255, 0.2)',
+          border: '4px dashed #00d4ff',
+          zIndex: 99999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          pointerEvents: 'none'
+        }}>
+          <h1 style={{ color: '#00d4ff', fontSize: '3rem', textShadow: '0 4px 10px rgba(0,0,0,0.5)' }}>Drop files or folders to upload</h1>
+        </div>
+      )}
       <AnimatePresence>
         {announcement && (
           <motion.div
