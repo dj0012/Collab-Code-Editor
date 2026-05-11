@@ -27,6 +27,8 @@ import {
 
 import ShareModal from "../components/Modals/ShareModal";
 import ProfileModal from "../components/Modals/ProfileModal";
+import DownloadModal from "../components/Modals/DownloadModal";
+import CreateFileModal from "../components/Modals/CreateFileModal";
 import CreateWhiteboardModal from "../components/Modals/CreateWhiteboardModal";
 import { useWebRTC } from "../hooks/useWebRTC";
 import VideoChat from "../components/VideoChat";
