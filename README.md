@@ -8,6 +8,7 @@ A real-time, highly interactive collaborative coding environment designed for te
 - **🤖 Integrated AI Assistant:** Built-in AI chat that reads your code and helps you debug or refactor directly within the editor.
 - **🎨 Collaborative Whiteboard:** A shared canvas to brainstorm architectures and draw flowcharts together.
 - **💬 Team Chat:** Built-in messaging to communicate with your peers without leaving the environment.
+- **📂 File Management:** Drag & drop local folders directly into the workspace or use the manual upload button to instantly import files.
 - **🛡️ Advanced Admin Controls:** 
   - **Room Locking:** Prevent unauthorized users from joining.
   - **Force View Sync:** Snap everyone's screen to the specific file the admin is viewing.
