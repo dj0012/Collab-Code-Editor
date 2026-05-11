@@ -441,6 +441,11 @@ int main() {
     removeUserFromRoom(roomId, targetSocketId);
   });
 
+  // 🔥 WEBRTC SIGNALING
+  socket.on("webrtc_signal", ({ to, signal }) => {
+    io.to(to).emit("webrtc_signal", { from: socket.id, signal });
+  });
+
   // 🔥 ADMIN MODERATION CONTROLS
   socket.on("toggle_room_lock", ({ roomId, isLocked }) => {
     const room = rooms[roomId];

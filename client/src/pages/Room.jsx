@@ -30,6 +30,8 @@ import ProfileModal from "../components/Modals/ProfileModal";
 import DownloadModal from "../components/Modals/DownloadModal";
 import CreateFileModal from "../components/Modals/CreateFileModal";
 import CreateWhiteboardModal from "../components/Modals/CreateWhiteboardModal";
+import { useWebRTC } from "../hooks/useWebRTC";
+import VideoChat from "../components/VideoChat";
 
 const LANGUAGE_OPTIONS = [
   { label: "JavaScript", value: "javascript", judge0Id: 63 },
@@ -72,6 +74,7 @@ function Room() {
 
 
   const [users, setUsers] = useState([]);
+  const rtcParams = useWebRTC();
   const [adminId, setAdminId] = useState("");
   const [adminUsername, setAdminUsername] = useState("");
   const [currentSocketId, setCurrentSocketId] = useState("");
@@ -906,6 +909,7 @@ function Room() {
           </div>
         </div>
       </aside>
+      <VideoChat rtcParams={rtcParams} users={users} />
     </div>
   );
 }
