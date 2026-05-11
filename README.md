@@ -42,9 +42,26 @@ Make sure you have [Node.js](https://nodejs.org/) installed on your machine.
    cd server
    npm install
    ```
-   *Create a `.env` file in the `/server` directory and add your API keys (e.g., `GEMINI_API_KEY`, `RAPIDAPI_KEY` for Judge0).*
+   *Create a `.env` file in the `/server` directory. See `.env.example` for required keys.*
 
-3. **Setup the Client:**
+3. **Configure Environment Variables:**
+   
+   Create `/server/.env` with the following:
+   ```
+   PORT=5001
+   MONGODB_URI=your_mongodb_connection_string
+   RAPIDAPI_KEY=your_judge0_api_key
+   FRONTEND_URL=http://localhost:5173
+   REDIS_URL=your_upstash_redis_url (optional)
+   GEMINI_API_KEY=your_gemini_api_key
+   ```
+   
+   **Required Keys:**
+   - `RAPIDAPI_KEY` - Get from [Judge0 API](https://rapidapi.com/judge0-official/api/judge0-ce) for code execution
+   - `GEMINI_API_KEY` - Get from [Google AI Studio](https://ai.google.dev/) for AI features
+   - `MONGODB_URI` - Optional, for database persistence (runs in-memory if not provided)
+
+4. **Setup the Client:**
    ```bash
    cd ../client
    npm install
@@ -71,3 +88,38 @@ npm run dev
 ## 👑 Using the Admin Panel
 When you create a new room, you are automatically assigned as the **Admin**. 
 Look for the **Crown Icon** in the top right corner of the workspace to open the Admin Control Modal and access all moderation tools. You can also grant "Editor" privileges to other users by clicking the **Pen Icon** next to their name in the sidebar.
+
+## 📋 Project Status & Configuration
+
+For a detailed audit of the project configuration, dependencies, and setup requirements, see [PROJECT_AUDIT_REPORT.md](./PROJECT_AUDIT_REPORT.md).
+
+**Quick Checklist Before Running:**
+- ✅ Node.js installed
+- ✅ All environment variables configured in `/server/.env`
+- ✅ Dependencies installed (`npm install` in both `/client` and `/server`)
+- ✅ Both server and client running simultaneously
+
+## 🔧 Troubleshooting
+
+### Code Execution Not Working
+- **Error:** "Failed to execute code" or no output
+- **Solution:** Ensure `RAPIDAPI_KEY` is set in `/server/.env` and your Judge0 API key is valid
+
+### AI Chat Not Responding
+- **Error:** "I'm currently unable to process this request"
+- **Solution:** Ensure `GEMINI_API_KEY` is set in `/server/.env` and valid
+
+### Real-time Sync Not Working
+- **Error:** Changes not syncing between users
+- **Solution:** Ensure both users are in the same room and backend is running on `http://localhost:5001`
+
+### Database Persistence Issues
+- **Solution:** Set `MONGODB_URI` in `/server/.env` for persistent storage. Without it, data is lost on server restart.
+
+## 📚 Documentation
+
+- **Architecture:** Real-time CRDT synchronization with Yjs, Socket.IO for events
+- **Code Execution:** Judge0 API for sandboxed code execution
+- **AI Features:** Google Gemini API for intelligent code assistance
+- **Whiteboard:** Excalidraw for collaborative drawing
+- **Database:** MongoDB + Redis optional caching layer
