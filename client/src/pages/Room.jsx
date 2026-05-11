@@ -8,7 +8,7 @@ import Output from "../components/Output";
 import { runCode } from "../services/api";
 import Chat from "../components/Chat";
 import UserList from "../components/UserList";
-import { FaPlay, FaRobot, FaTerminal, FaCrown, FaBullhorn } from "react-icons/fa";
+import { FaPlay, FaRobot, FaTerminal, FaCrown, FaBullhorn, FaUpload } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import AIChat from "../components/AIChat";
 import AdminControlsModal from "../components/AdminControlsModal";
@@ -91,6 +91,7 @@ function Room() {
   const [isChatMuted, setIsChatMuted] = useState(false);
   const [announcement, setAnnouncement] = useState(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const fileInputRef = useRef(null);
 
   const avatarColors = ["#ff4757", "#2ed573", "#1e90ff", "#ffa502", "#ff6b81", "#7bed9f", "#70a1ff", "#eccc68", "#ff7f50", "#9b59b6", "#3498db", "#1abc9c", "#e74c3c"];
   const avatarColor = useMemo(() => {
@@ -479,6 +480,41 @@ function Room() {
     }
   };
 
+  const handleFileUpload = (e) => {
+    if (!isAdmin) return;
+    const uploadedFiles = e.target.files;
+    if (!uploadedFiles || uploadedFiles.length === 0) return;
+    
+    for (let i = 0; i < uploadedFiles.length; i++) {
+      const file = uploadedFiles[i];
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target.result;
+        const ext = file.name.split('.').pop().toLowerCase();
+        
+        let language = "javascript";
+        if (ext === 'py') language = 'python';
+        else if (ext === 'java') language = 'java';
+        else if (ext === 'cpp' || ext === 'cc' || ext === 'cxx') language = 'cpp';
+        else if (ext === 'c') language = 'c';
+        else if (ext === 'json' || ext === 'md' || ext === 'txt' || ext === 'html' || ext === 'css') {
+          language = "javascript";
+        }
+
+        socket.emit("create_file", { 
+          roomId, 
+          name: file.name, 
+          language,
+          content
+        });
+      };
+      reader.readAsText(file);
+    }
+    
+    // Reset input so the same files can be selected again
+    e.target.value = '';
+  };
+
   const scanFiles = (item, path = '') => {
     if (item.isFile) {
       item.file((file) => {
@@ -744,12 +780,29 @@ function Room() {
               </div>
             ))}
             {isAdmin && (
-              <button
-                onClick={promptCreateFile}
-                style={{ background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", padding: "0 16px", fontSize: "1.2rem" }}
-              >
-                +
-              </button>
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <button
+                  onClick={promptCreateFile}
+                  title="Create File"
+                  style={{ background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", padding: "0 8px 0 16px", fontSize: "1.2rem" }}
+                >
+                  +
+                </button>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Upload Files"
+                  style={{ background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", padding: "0 16px 0 8px", fontSize: "1.0rem", display: "flex", alignItems: "center" }}
+                >
+                  <FaUpload />
+                </button>
+                <input
+                  type="file"
+                  multiple
+                  ref={fileInputRef}
+                  style={{ display: "none" }}
+                  onChange={handleFileUpload}
+                />
+              </div>
             )}
             
             {language && (
