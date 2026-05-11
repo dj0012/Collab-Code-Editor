@@ -1312,12 +1312,12 @@ select:disabled {
 }
 
 .topbar-logo {
-  width: 48px;
-  height: 48px;
+  width: 80px;
+  height: 80px;
   object-fit: contain;
   filter: drop-shadow(0 2px 8px rgba(0, 212, 255, 0.4));
-  transform: scale(2.2) translateY(1px);
-  margin-right: -2px;
+  transform: scale(3.5) translateY(1px);
+  margin-right: 24px;
 }
 
 .topbar-title h1 {
