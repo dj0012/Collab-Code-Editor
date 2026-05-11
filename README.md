@@ -74,7 +74,7 @@ You need to run both the server and the client simultaneously.
 **Terminal 1 (Backend):**
 ```bash
 cd server
-node index.js
+npm start
 ```
 *(The server will run on port 5001 by default)*
 
