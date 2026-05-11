@@ -27,11 +27,10 @@ import {
 
 import ShareModal from "../components/Modals/ShareModal";
 import ProfileModal from "../components/Modals/ProfileModal";
-import DownloadModal from "../components/Modals/DownloadModal";
-import CreateFileModal from "../components/Modals/CreateFileModal";
 import CreateWhiteboardModal from "../components/Modals/CreateWhiteboardModal";
 import { useWebRTC } from "../hooks/useWebRTC";
 import VideoChat from "../components/VideoChat";
+import IncomingCallModal from "../components/IncomingCallModal";
 
 const LANGUAGE_OPTIONS = [
   { label: "JavaScript", value: "javascript", judge0Id: 63 },
@@ -94,6 +93,7 @@ function Room() {
   const [isChatMuted, setIsChatMuted] = useState(false);
   const [announcement, setAnnouncement] = useState(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [incomingCall, setIncomingCall] = useState(null);
   const fileInputRef = useRef(null);
 
   const avatarColors = ["#ff4757", "#2ed573", "#1e90ff", "#ffa502", "#ff6b81", "#7bed9f", "#70a1ff", "#eccc68", "#ff7f50", "#9b59b6", "#3498db", "#1abc9c", "#e74c3c"];
@@ -213,6 +213,17 @@ function Room() {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    const handleIncomingCall = (data) => {
+      // If we aren't in a call, show the popup
+      if (!rtcParams.localStream) {
+        setIncomingCall(data);
+      }
+    };
+    socket.on("incoming_call", handleIncomingCall);
+    return () => socket.off("incoming_call", handleIncomingCall);
+  }, [rtcParams.localStream]);
 
   const isAdmin = myUserId === adminId;
 
@@ -698,7 +709,10 @@ function Room() {
           {!rtcParams.localStream && (
             <button 
               className="modern-chip chip-button icon-only" 
-              onClick={() => rtcParams.startCall(users)} 
+              onClick={() => {
+                rtcParams.startCall(users);
+                socket.emit("initiate_call", { roomId, callerName: username });
+              }} 
               title="Join Video Call" 
               style={{ color: '#10b981', borderColor: 'rgba(16, 185, 129, 0.3)', background: 'rgba(16, 185, 129, 0.1)' }}
             >
@@ -921,6 +935,14 @@ function Room() {
         </div>
       </aside>
       <VideoChat rtcParams={rtcParams} users={users} />
+      <IncomingCallModal 
+        incomingCall={incomingCall} 
+        onAccept={() => {
+          rtcParams.startCall(users);
+          setIncomingCall(null);
+        }} 
+        onDecline={() => setIncomingCall(null)} 
+      />
     </div>
   );
 }

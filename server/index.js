@@ -446,6 +446,10 @@ int main() {
     io.to(to).emit("webrtc_signal", { from: socket.id, signal });
   });
 
+  socket.on("initiate_call", ({ roomId, callerName }) => {
+    socket.to(roomId).emit("incoming_call", { callerName, socketId: socket.id });
+  });
+
   // 🔥 ADMIN MODERATION CONTROLS
   socket.on("toggle_room_lock", ({ roomId, isLocked }) => {
     const room = rooms[roomId];
