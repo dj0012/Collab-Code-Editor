@@ -8,7 +8,7 @@ import Output from "../components/Output";
 import { runCode } from "../services/api";
 import Chat from "../components/Chat";
 import UserList from "../components/UserList";
-import { FaPlay, FaRobot, FaTerminal, FaCrown, FaBullhorn, FaUpload } from "react-icons/fa";
+import { FaPlay, FaRobot, FaTerminal, FaCrown, FaBullhorn, FaUpload, FaVideo } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import AIChat from "../components/AIChat";
 import AdminControlsModal from "../components/AdminControlsModal";
@@ -694,6 +694,17 @@ function Room() {
 
         <div className="topbar-right">
           <div className="topbar-actions">
+
+          {!rtcParams.localStream && (
+            <button 
+              className="modern-chip chip-button icon-only" 
+              onClick={() => rtcParams.startCall(users)} 
+              title="Join Video Call" 
+              style={{ color: '#10b981', borderColor: 'rgba(16, 185, 129, 0.3)', background: 'rgba(16, 185, 129, 0.1)' }}
+            >
+              <FaVideo />
+            </button>
+          )}
 
           {isAdmin && (
             <button className="modern-chip chip-button icon-only" onClick={() => setShowAdminModal(true)} title="Admin Controls" style={{ color: '#f1c40f', borderColor: 'rgba(241, 196, 15, 0.3)', background: 'rgba(241, 196, 15, 0.1)' }}>

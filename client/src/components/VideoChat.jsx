@@ -29,45 +29,7 @@ const VideoChat = ({ rtcParams, users }) => {
   const [isMinimized, setIsMinimized] = useState(false);
 
   if (!localStream) {
-    return (
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        style={{ position: 'fixed', bottom: '30px', right: '30px', zIndex: 1000 }}
-      >
-        <button 
-          onClick={() => startCall(users)} 
-          style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '10px', 
-            padding: '14px 28px', 
-            borderRadius: '30px',
-            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-            color: 'white',
-            fontWeight: '600',
-            fontSize: '1rem',
-            border: 'none',
-            boxShadow: '0 8px 20px rgba(16, 185, 129, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
-            cursor: 'pointer',
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-4px) scale(1.02)';
-            e.currentTarget.style.boxShadow = '0 12px 28px rgba(16, 185, 129, 0.5), inset 0 1px 0 rgba(255,255,255,0.2)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0) scale(1)';
-            e.currentTarget.style.boxShadow = '0 8px 20px rgba(16, 185, 129, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)';
-          }}
-        >
-          <div style={{ background: 'rgba(255,255,255,0.2)', padding: '6px', borderRadius: '50%', display: 'flex' }}>
-            <FaVideo size={16} />
-          </div>
-          Join Video Call
-        </button>
-      </motion.div>
-    );
+    return null;
   }
 
   const remoteUsers = Object.keys(remoteStreams);
