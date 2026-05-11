@@ -506,6 +506,7 @@ function Room() {
         reader.readAsText(file);
       });
     } else if (item.isDirectory) {
+      if (item.name === 'node_modules' || item.name === '.git' || item.name === 'dist' || item.name === 'build') return;
       const dirReader = item.createReader();
       dirReader.readEntries((entries) => {
         entries.forEach((entry) => {
@@ -523,15 +524,19 @@ function Room() {
       onDrop={handleDrop}
     >
       {isDraggingOver && (
-        <div style={{
+        <div 
+          onDragLeave={() => setIsDraggingOver(false)}
+          onDrop={handleDrop}
+          onDragOver={(e) => e.preventDefault()}
+          style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           backgroundColor: 'rgba(0, 212, 255, 0.2)',
           border: '4px dashed #00d4ff',
           zIndex: 99999,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          pointerEvents: 'none'
+          backdropFilter: 'blur(4px)'
         }}>
-          <h1 style={{ color: '#00d4ff', fontSize: '3rem', textShadow: '0 4px 10px rgba(0,0,0,0.5)' }}>Drop files or folders to upload</h1>
+          <h1 style={{ color: '#00d4ff', fontSize: '3rem', textShadow: '0 4px 10px rgba(0,0,0,0.5)', pointerEvents: 'none' }}>Drop files or folders to upload</h1>
         </div>
       )}
       <AnimatePresence>
