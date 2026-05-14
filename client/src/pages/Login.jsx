@@ -47,7 +47,7 @@ function Login() {
       : { email, password, username: authUsername };
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5001";
+      const apiUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:5001";
       const res = await fetch(`${apiUrl}${url}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
