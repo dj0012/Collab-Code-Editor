@@ -8,7 +8,7 @@ import Output from "../components/Output";
 import { runCode } from "../services/api";
 import Chat from "../components/Chat";
 import UserList from "../components/UserList";
-import { FaPlay, FaRobot, FaTerminal, FaCrown, FaBullhorn, FaUpload, FaVideo } from "react-icons/fa";
+import { FaPlay, FaRobot, FaTerminal, FaCrown, FaBullhorn } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import AIChat from "../components/AIChat";
 import AdminControlsModal from "../components/AdminControlsModal";
@@ -30,9 +30,6 @@ import ProfileModal from "../components/Modals/ProfileModal";
 import DownloadModal from "../components/Modals/DownloadModal";
 import CreateFileModal from "../components/Modals/CreateFileModal";
 import CreateWhiteboardModal from "../components/Modals/CreateWhiteboardModal";
-import { useWebRTC } from "../hooks/useWebRTC";
-import VideoChat from "../components/VideoChat";
-import IncomingCallModal from "../components/IncomingCallModal";
 
 const LANGUAGE_OPTIONS = [
   { label: "JavaScript", value: "javascript", judge0Id: 63 },
@@ -52,21 +49,14 @@ function Room() {
   const username = location.state?.username || sessionStorage.getItem("collab_username");
   
   // Create a persistent user ID for admin tracking
-  const getOrCreateUserId = () => {
-    // 1. Prioritize authenticated user ID from login
-    let id = localStorage.getItem("userId");
-    if (id) return id;
-
-    // 2. Fallback for anonymous guests
-    id = sessionStorage.getItem("collab_userId");
+  const [myUserId] = useState(() => {
+    let id = sessionStorage.getItem("collab_userId");
     if (!id) {
-      id = "user_" + Math.random().toString(36).substr(2, 9) + "_" + Date.now();
+      id = "user_" + Math.random().toString(36).substring(2, 15);
       sessionStorage.setItem("collab_userId", id);
     }
     return id;
-  };
-  
-  const [myUserId] = useState(getOrCreateUserId);
+  });
 
   useEffect(() => {
     if (username) {
@@ -82,7 +72,6 @@ function Room() {
 
 
   const [users, setUsers] = useState([]);
-  const rtcParams = useWebRTC();
   const [adminId, setAdminId] = useState("");
   const [adminUsername, setAdminUsername] = useState("");
   const [currentSocketId, setCurrentSocketId] = useState("");
@@ -102,8 +91,6 @@ function Room() {
   const [isChatMuted, setIsChatMuted] = useState(false);
   const [announcement, setAnnouncement] = useState(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
-  const [incomingCall, setIncomingCall] = useState(null);
-  const fileInputRef = useRef(null);
 
   const avatarColors = ["#ff4757", "#2ed573", "#1e90ff", "#ffa502", "#ff6b81", "#7bed9f", "#70a1ff", "#eccc68", "#ff7f50", "#9b59b6", "#3498db", "#1abc9c", "#e74c3c"];
   const avatarColor = useMemo(() => {
@@ -222,17 +209,6 @@ function Room() {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("theme", theme);
   }, [theme]);
-
-  useEffect(() => {
-    const handleIncomingCall = (data) => {
-      // If we aren't in a call, show the popup
-      if (!rtcParams.localStream) {
-        setIncomingCall(data);
-      }
-    };
-    socket.on("incoming_call", handleIncomingCall);
-    return () => socket.off("incoming_call", handleIncomingCall);
-  }, [rtcParams.localStream]);
 
   const isAdmin = myUserId === adminId;
 
@@ -503,41 +479,6 @@ function Room() {
     }
   };
 
-  const handleFileUpload = (e) => {
-    if (!isAdmin) return;
-    const uploadedFiles = e.target.files;
-    if (!uploadedFiles || uploadedFiles.length === 0) return;
-    
-    for (let i = 0; i < uploadedFiles.length; i++) {
-      const file = uploadedFiles[i];
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const content = event.target.result;
-        const ext = file.name.split('.').pop().toLowerCase();
-        
-        let language = "javascript";
-        if (ext === 'py') language = 'python';
-        else if (ext === 'java') language = 'java';
-        else if (ext === 'cpp' || ext === 'cc' || ext === 'cxx') language = 'cpp';
-        else if (ext === 'c') language = 'c';
-        else if (ext === 'json' || ext === 'md' || ext === 'txt' || ext === 'html' || ext === 'css') {
-          language = "javascript";
-        }
-
-        socket.emit("create_file", { 
-          roomId, 
-          name: file.name, 
-          language,
-          content
-        });
-      };
-      reader.readAsText(file);
-    }
-    
-    // Reset input so the same files can be selected again
-    e.target.value = '';
-  };
-
   const scanFiles = (item, path = '') => {
     if (item.isFile) {
       item.file((file) => {
@@ -565,7 +506,6 @@ function Room() {
         reader.readAsText(file);
       });
     } else if (item.isDirectory) {
-      if (item.name === 'node_modules' || item.name === '.git' || item.name === 'dist' || item.name === 'build') return;
       const dirReader = item.createReader();
       dirReader.readEntries((entries) => {
         entries.forEach((entry) => {
@@ -583,19 +523,15 @@ function Room() {
       onDrop={handleDrop}
     >
       {isDraggingOver && (
-        <div 
-          onDragLeave={() => setIsDraggingOver(false)}
-          onDrop={handleDrop}
-          onDragOver={(e) => e.preventDefault()}
-          style={{
+        <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           backgroundColor: 'rgba(0, 212, 255, 0.2)',
           border: '4px dashed #00d4ff',
           zIndex: 99999,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          backdropFilter: 'blur(4px)'
+          pointerEvents: 'none'
         }}>
-          <h1 style={{ color: '#00d4ff', fontSize: '3rem', textShadow: '0 4px 10px rgba(0,0,0,0.5)', pointerEvents: 'none' }}>Drop files or folders to upload</h1>
+          <h1 style={{ color: '#00d4ff', fontSize: '3rem', textShadow: '0 4px 10px rgba(0,0,0,0.5)' }}>Drop files or folders to upload</h1>
         </div>
       )}
       <AnimatePresence>
@@ -715,20 +651,6 @@ function Room() {
         <div className="topbar-right">
           <div className="topbar-actions">
 
-          {!rtcParams.localStream && (
-            <button 
-              className="modern-chip chip-button icon-only" 
-              onClick={() => {
-                rtcParams.startCall(users);
-                socket.emit("initiate_call", { roomId, callerName: username });
-              }} 
-              title="Join Video Call" 
-              style={{ color: '#10b981', borderColor: 'rgba(16, 185, 129, 0.3)', background: 'rgba(16, 185, 129, 0.1)' }}
-            >
-              <FaVideo />
-            </button>
-          )}
-
           {isAdmin && (
             <button className="modern-chip chip-button icon-only" onClick={() => setShowAdminModal(true)} title="Admin Controls" style={{ color: '#f1c40f', borderColor: 'rgba(241, 196, 15, 0.3)', background: 'rgba(241, 196, 15, 0.1)' }}>
               <FaCrown />
@@ -817,29 +739,12 @@ function Room() {
               </div>
             ))}
             {isAdmin && (
-              <div style={{ display: "flex", alignItems: "center" }}>
-                <button
-                  onClick={promptCreateFile}
-                  title="Create File"
-                  style={{ background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", padding: "0 8px 0 16px", fontSize: "1.2rem" }}
-                >
-                  +
-                </button>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  title="Upload Files"
-                  style={{ background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", padding: "0 16px 0 8px", fontSize: "1.0rem", display: "flex", alignItems: "center" }}
-                >
-                  <FaUpload />
-                </button>
-                <input
-                  type="file"
-                  multiple
-                  ref={fileInputRef}
-                  style={{ display: "none" }}
-                  onChange={handleFileUpload}
-                />
-              </div>
+              <button
+                onClick={promptCreateFile}
+                style={{ background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", padding: "0 16px", fontSize: "1.2rem" }}
+              >
+                +
+              </button>
             )}
             
             {language && (
@@ -943,15 +848,6 @@ function Room() {
           </div>
         </div>
       </aside>
-      <VideoChat rtcParams={rtcParams} users={users} />
-      <IncomingCallModal 
-        incomingCall={incomingCall} 
-        onAccept={() => {
-          rtcParams.startCall(users);
-          setIncomingCall(null);
-        }} 
-        onDecline={() => setIncomingCall(null)} 
-      />
     </div>
   );
 }
