@@ -13,6 +13,9 @@ const rateLimit = require("express-rate-limit");
 const { askAI } = require("./ai");
 const mongoose = require("mongoose");
 const Room = require("./models/Room");
+const User = require("./models/User");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 if (process.env.MONGODB_URI) {
   mongoose.connect(process.env.MONGODB_URI)
@@ -37,6 +40,58 @@ const apiLimiter = rateLimit({
 });
 app.use(apiLimiter);
 app.use(express.json());
+
+// 🔥 AUTHENTICATION ROUTES
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+    if (!username || !email || !password) return res.status(400).json({ error: "All fields required" });
+    
+    if (!process.env.MONGODB_URI) return res.status(500).json({ error: "Database not connected. Contact Admin." });
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) return res.status(400).json({ error: "Email already exists" });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = new User({ username, email, password: hashedPassword });
+    await user.save();
+
+    const token = jwt.sign(
+      { userId: user._id, email: user.email, username: user.username }, 
+      process.env.JWT_SECRET || "fallback_secret_key_change_me", 
+      { expiresIn: "7d" }
+    );
+    res.json({ token, username: user.username, userId: user._id });
+  } catch (err) {
+    console.error("Register Error:", err);
+    res.status(500).json({ error: "Server error during registration" });
+  }
+});
+
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: "All fields required" });
+
+    if (!process.env.MONGODB_URI) return res.status(500).json({ error: "Database not connected. Contact Admin." });
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ error: "Invalid credentials" });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });
+
+    const token = jwt.sign(
+      { userId: user._id, email: user.email, username: user.username }, 
+      process.env.JWT_SECRET || "fallback_secret_key_change_me", 
+      { expiresIn: "7d" }
+    );
+    res.json({ token, username: user.username, userId: user._id });
+  } catch (err) {
+    console.error("Login Error:", err);
+    res.status(500).json({ error: "Server error during login" });
+  }
+});
 
 app.post("/api/execute", async (req, res) => {
   try {

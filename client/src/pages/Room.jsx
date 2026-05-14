@@ -52,14 +52,21 @@ function Room() {
   const username = location.state?.username || sessionStorage.getItem("collab_username");
   
   // Create a persistent user ID for admin tracking
-  const [myUserId] = useState(() => {
-    let id = sessionStorage.getItem("collab_userId");
+  const getOrCreateUserId = () => {
+    // 1. Prioritize authenticated user ID from login
+    let id = localStorage.getItem("userId");
+    if (id) return id;
+
+    // 2. Fallback for anonymous guests
+    id = sessionStorage.getItem("collab_userId");
     if (!id) {
-      id = "user_" + Math.random().toString(36).substring(2, 15);
+      id = "user_" + Math.random().toString(36).substr(2, 9) + "_" + Date.now();
       sessionStorage.setItem("collab_userId", id);
     }
     return id;
-  });
+  };
+  
+  const [myUserId] = useState(getOrCreateUserId);
 
   useEffect(() => {
     if (username) {

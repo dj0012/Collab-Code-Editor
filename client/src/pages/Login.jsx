@@ -1,24 +1,88 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { motion } from "framer-motion";
-import { FaArrowRight, FaBolt, FaCodeBranch, FaUsers } from "react-icons/fa";
+import { motion, AnimatePresence } from "framer-motion";
+import { FaArrowRight, FaBolt, FaCodeBranch, FaUsers, FaSignOutAlt } from "react-icons/fa";
 
 function Login() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authMode, setAuthMode] = useState("login"); // "login" or "register"
+  
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authUsername, setAuthUsername] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
   const [username, setUsername] = useState("");
   const [roomId, setRoomId] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newRoomId, setNewRoomId] = useState("");
   const [logoPreview, setLogoPreview] = useState(null);
+  
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
+    const token = localStorage.getItem("token");
+    const savedUsername = localStorage.getItem("username");
+    if (token) {
+      setIsAuthenticated(true);
+      if (savedUsername) setUsername(savedUsername);
+    }
     const params = new URLSearchParams(location.search);
     const roomParam = params.get("roomId");
     if (roomParam) {
       setRoomId(roomParam);
     }
   }, [location.search]);
+
+  const handleAuth = async (e) => {
+    e.preventDefault();
+    setAuthError("");
+    setIsLoading(true);
+    
+    const url = authMode === "login" ? "/api/auth/login" : "/api/auth/register";
+    const payload = authMode === "login" 
+      ? { email, password } 
+      : { email, password, username: authUsername };
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5001";
+      const res = await fetch(`${apiUrl}${url}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      
+      if (!res.ok) {
+        setAuthError(data.error || "Authentication failed");
+        setIsLoading(false);
+        return;
+      }
+
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("userId", data.userId);
+      localStorage.setItem("username", data.username);
+      setUsername(data.username);
+      setIsAuthenticated(true);
+    } catch (err) {
+      setAuthError("Failed to connect to the server. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("username");
+    setIsAuthenticated(false);
+    setUsername("");
+    setEmail("");
+    setPassword("");
+  };
+
   const generateRoomCode = () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@*_-";
     const array = new Uint8Array(16);
@@ -158,45 +222,128 @@ function Login() {
         </section>
 
         <section className="auth-panel">
-          <div className="panel-badge">Start a session</div>
-          <h2>Enter your collaborative workspace</h2>
-          <p className="panel-description">
-            Pick a username, join an existing room, or spin up a fresh one for
-            your next coding session.
-          </p>
+          {!isAuthenticated ? (
+            <AnimatePresence mode="wait">
+              <motion.div 
+                key={authMode}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2 }}
+              >
+                <div className="panel-badge">Authentication</div>
+                <h2>{authMode === "login" ? "Welcome back" : "Create an account"}</h2>
+                <p className="panel-description">
+                  {authMode === "login" 
+                    ? "Log in to access your workspaces and start collaborating." 
+                    : "Sign up to create secure rooms and invite your team."}
+                </p>
 
-          <div className="auth-form">
-            <label className="field">
-              <span>Display name</span>
-              <input
-                value={username}
-                placeholder="e.g. Dhananjay"
-                onChange={(e) => setUsername(e.target.value)}
-              />
-            </label>
+                {authError && <div style={{ color: '#ff4d4f', background: 'rgba(255, 77, 79, 0.1)', padding: '10px', borderRadius: '6px', marginBottom: '16px', fontSize: '0.9rem', border: '1px solid rgba(255, 77, 79, 0.2)' }}>{authError}</div>}
 
-            <label className="field">
-              <span>Room code</span>
-              <input
-                value={roomId}
-                placeholder="Enter 16-digit room code"
-                inputMode="text"
-                maxLength={16}
-                onChange={(e) => setRoomId(e.target.value.slice(0, 16))}
-              />
-            </label>
+                <form className="auth-form" onSubmit={handleAuth}>
+                  {authMode === "register" && (
+                    <label className="field">
+                      <span>Display name</span>
+                      <input
+                        value={authUsername}
+                        required
+                        placeholder="e.g. Dhananjay"
+                        onChange={(e) => setAuthUsername(e.target.value)}
+                      />
+                    </label>
+                  )}
+                  
+                  <label className="field">
+                    <span>Email address</span>
+                    <input
+                      type="email"
+                      value={email}
+                      required
+                      placeholder="you@example.com"
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </label>
 
-            <div className="auth-actions">
-              <button className="primary-btn" onClick={joinRoom}>
-                Join room
-                <FaArrowRight />
-              </button>
+                  <label className="field">
+                    <span>Password</span>
+                    <input
+                      type="password"
+                      value={password}
+                      required
+                      placeholder="••••••••"
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </label>
 
-              <button className="secondary-btn" onClick={openCreateModal}>
-                Create new room
-              </button>
-            </div>
-          </div>
+                  <div className="auth-actions" style={{ flexDirection: 'column', gap: '12px' }}>
+                    <button type="submit" className="primary-btn" disabled={isLoading} style={{ width: '100%', justifyContent: 'center' }}>
+                      {isLoading ? "Processing..." : (authMode === "login" ? "Sign In" : "Create Account")}
+                    </button>
+
+                    <button 
+                      type="button" 
+                      className="secondary-btn" 
+                      style={{ width: '100%', justifyContent: 'center', background: 'transparent', border: 'none', color: '#a5b4fc', fontSize: '0.9rem' }}
+                      onClick={() => setAuthMode(authMode === "login" ? "register" : "login")}
+                    >
+                      {authMode === "login" ? "Don't have an account? Sign up" : "Already have an account? Log in"}
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </AnimatePresence>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <div className="panel-badge">Start a session</div>
+                <button onClick={logout} style={{ background: 'none', border: 'none', color: '#a5b4fc', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}>
+                  <FaSignOutAlt /> Log out
+                </button>
+              </div>
+              
+              <h2>Enter your collaborative workspace</h2>
+              <p className="panel-description">
+                Join an existing room or spin up a fresh one for your next coding session.
+              </p>
+
+              <div className="auth-form">
+                <label className="field">
+                  <span>Display name</span>
+                  <input
+                    value={username}
+                    placeholder="e.g. Dhananjay"
+                    onChange={(e) => setUsername(e.target.value)}
+                  />
+                </label>
+
+                <label className="field">
+                  <span>Room code</span>
+                  <input
+                    value={roomId}
+                    placeholder="Enter 16-digit room code"
+                    inputMode="text"
+                    maxLength={16}
+                    onChange={(e) => setRoomId(e.target.value.slice(0, 16))}
+                  />
+                </label>
+
+                <div className="auth-actions">
+                  <button className="primary-btn" onClick={joinRoom}>
+                    Join room
+                    <FaArrowRight />
+                  </button>
+
+                  <button className="secondary-btn" onClick={openCreateModal}>
+                    Create new room
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
         </section>
       </motion.div>
     </div>
